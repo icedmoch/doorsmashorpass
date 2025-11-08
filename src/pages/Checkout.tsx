@@ -4,27 +4,34 @@ import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ChevronLeft, MapPin, Clock, Loader2 } from "lucide-react";
+import { ChevronLeft, Clock, Loader2 } from "lucide-react";
+import { LocationPicker } from "@/components/LocationPicker";
 
 const Checkout = () => {
   const { items, totals, clearCart } = useCart();
   const navigate = useNavigate();
-  const [deliveryOption, setDeliveryOption] = useState("pickup");
   const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
+  const [deliveryLng, setDeliveryLng] = useState<number | null>(null);
   const [deliveryTime, setDeliveryTime] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleLocationSelect = (lat: number, lng: number, address: string) => {
+    setDeliveryLat(lat);
+    setDeliveryLng(lng);
+    setDeliveryLocation(address);
+  };
+
   const handlePlaceOrder = async () => {
-    if (deliveryOption === "delivery" && !deliveryLocation) {
+    if (!deliveryLocation || deliveryLat === null || deliveryLng === null) {
       toast({
         title: "Missing information",
-        description: "Please enter a delivery location",
+        description: "Please select a delivery location on the map",
         variant: "destructive",
       });
       return;
@@ -33,7 +40,7 @@ const Checkout = () => {
     if (!deliveryTime) {
       toast({
         title: "Missing information",
-        description: "Please select a delivery/pickup time",
+        description: "Please select a delivery time",
         variant: "destructive",
       });
       return;
@@ -51,8 +58,10 @@ const Checkout = () => {
         .from('orders')
         .insert({
           user_id: userId,
-          delivery_option: deliveryOption,
-          delivery_location: deliveryOption === 'delivery' ? deliveryLocation : null,
+          delivery_option: 'delivery',
+          delivery_location: deliveryLocation,
+          delivery_latitude: deliveryLat,
+          delivery_longitude: deliveryLng,
           delivery_time: deliveryTime,
           special_notes: notes || null,
           status: 'pending',
@@ -85,7 +94,7 @@ const Checkout = () => {
 
       toast({
         title: "Order placed!",
-        description: `Your order will be ${deliveryOption === "delivery" ? "delivered" : "ready for pickup"} at ${deliveryTime}`,
+        description: `Your order will be delivered at ${deliveryTime}`,
       });
 
       clearCart();
@@ -180,55 +189,21 @@ const Checkout = () => {
 
           {/* Delivery Options */}
           <div className="space-y-6">
+            <LocationPicker 
+              onLocationSelect={handleLocationSelect}
+              initialLat={deliveryLat || undefined}
+              initialLng={deliveryLng || undefined}
+            />
+
             <Card>
               <CardHeader>
-                <CardTitle>Delivery Options</CardTitle>
+                <CardTitle>Delivery Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <RadioGroup value={deliveryOption} onValueChange={setDeliveryOption}>
-                  <div className="flex items-center space-x-2 p-4 border rounded-lg">
-                    <RadioGroupItem value="pickup" id="pickup" />
-                    <Label htmlFor="pickup" className="flex-1 cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        <span className="font-medium">Pickup at Dining Hall</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Pick up your order at the selected dining hall
-                      </p>
-                    </Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2 p-4 border rounded-lg">
-                    <RadioGroupItem value="delivery" id="delivery" />
-                    <Label htmlFor="delivery" className="flex-1 cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        <span className="font-medium">Campus Delivery</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Deliver to your campus location
-                      </p>
-                    </Label>
-                  </div>
-                </RadioGroup>
-
-                {deliveryOption === "delivery" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Delivery Location</Label>
-                    <Input
-                      id="location"
-                      placeholder="e.g., Smith Hall Room 302"
-                      value={deliveryLocation}
-                      onChange={(e) => setDeliveryLocation(e.target.value)}
-                    />
-                  </div>
-                )}
-
                 <div className="space-y-2">
                   <Label htmlFor="time" className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    {deliveryOption === "delivery" ? "Delivery" : "Pickup"} Time
+                    Preferred Delivery Time
                   </Label>
                   <Input
                     id="time"
