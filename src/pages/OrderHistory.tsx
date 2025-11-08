@@ -22,6 +22,7 @@ type OrderItem = {
   protein: number;
   carbs: number;
   fat: number;
+  dining_hall?: string | null;
 };
 
 type Order = {
@@ -592,9 +593,19 @@ const OrderCard = ({
             >
               <div className="flex-1">
                 <p className="font-medium">{item.food_item_name}</p>
-                <p className="text-sm text-muted-foreground">
-                  Qty: {item.quantity}
-                </p>
+                <div className="flex gap-2 items-center mt-1">
+                  <p className="text-sm text-muted-foreground">
+                    Qty: {item.quantity}
+                  </p>
+                  {item.dining_hall && (
+                    <>
+                      <span className="text-muted-foreground text-sm">•</span>
+                      <Badge variant="outline" className="text-xs">
+                        {item.dining_hall}
+                      </Badge>
+                    </>
+                  )}
+                </div>
               </div>
               <div className="text-right text-sm">
                 <p>{Math.round(item.calories * item.quantity)} cal</p>

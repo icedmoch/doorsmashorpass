@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { ChevronLeft, Clock, Loader2 } from "lucide-react";
 import { LocationPicker } from "@/components/LocationPicker";
@@ -99,6 +100,7 @@ const Checkout = () => {
         protein: item.protein,
         carbs: item.carbs,
         fat: item.fat,
+        dining_hall: item.diningHall || null,
       }));
 
       const { error: itemsError } = await supabase
@@ -172,7 +174,15 @@ const Checkout = () => {
                   <div key={item.id} className="flex justify-between items-start pb-4 border-b last:border-0 last:pb-0">
                     <div className="flex-1">
                       <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                      <div className="flex gap-2 items-center mt-1">
+                        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                        {item.diningHall && (
+                          <>
+                            <span className="text-muted-foreground">•</span>
+                            <Badge variant="outline" className="text-xs">{item.diningHall}</Badge>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right text-sm">
                       <p>{item.calories * item.quantity} cal</p>
