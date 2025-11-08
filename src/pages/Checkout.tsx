@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,16 +10,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { ChevronLeft, Clock, Loader2 } from "lucide-react";
 import { LocationPicker } from "@/components/LocationPicker";
+import { User } from "@supabase/supabase-js";
 
 const Checkout = () => {
   const { items, totals, clearCart } = useCart();
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
   const [deliveryLocation, setDeliveryLocation] = useState("");
   const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
   const [deliveryLng, setDeliveryLng] = useState<number | null>(null);
   const [deliveryTime, setDeliveryTime] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+  }, []);
 
   const handleLocationSelect = (lat: number, lng: number, address: string) => {
     setDeliveryLat(lat);
@@ -49,15 +57,21 @@ const Checkout = () => {
     setIsSubmitting(true);
 
     try {
-      // Get the current user (for now, using a default user ID of 1)
-      // TODO: Replace with actual authenticated user when auth is implemented
-      const userId = 1;
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to place an order",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
 
       // Create the order
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: userId,
+          user_id: user.id,
           delivery_option: 'delivery',
           delivery_location: deliveryLocation,
           delivery_latitude: deliveryLat,

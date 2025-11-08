@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, Clock, MapPin, Package, Loader2, User, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DeliveryMap } from "@/components/DeliveryMap";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
 type OrderStatus = 'pending' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -38,7 +39,7 @@ type Order = {
   total_fat: number;
   created_at: string;
   items?: OrderItem[];
-  user_id: number;
+  user_id: string;
 };
 
 const OrderHistory = () => {
@@ -48,20 +49,22 @@ const OrderHistory = () => {
   const [myDeliveries, setMyDeliveries] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("my-orders");
-
-  // TODO: Replace with actual authenticated user ID when auth is implemented
-  const currentUserId = 1;
+  const [user, setUser] = useState<SupabaseUser | null>(null);
 
   useEffect(() => {
-    fetchOrders();
-    fetchAvailableDeliveries();
-    fetchMyDeliveries();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      if (user) {
+        fetchOrders(user.id);
+        fetchAvailableDeliveries(user.id);
+        fetchMyDeliveries(user.id);
+      }
+    });
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (userId: string) => {
     try {
       setIsLoading(true);
-      const userId = currentUserId;
 
       // Fetch orders
       const { data: ordersData, error: ordersError } = await supabase
@@ -102,7 +105,7 @@ const OrderHistory = () => {
     }
   };
 
-  const fetchAvailableDeliveries = async () => {
+  const fetchAvailableDeliveries = async (userId: string) => {
     try {
       // Fetch orders that need delivery but haven't been claimed
       const { data: ordersData, error: ordersError } = await supabase
@@ -110,7 +113,7 @@ const OrderHistory = () => {
         .select('*')
         .eq('delivery_option', 'delivery')
         .is('delivery_person_id', null)
-        .neq('user_id', currentUserId)
+        .neq('user_id', userId)
         .in('status', ['pending', 'preparing', 'ready'])
         .order('created_at', { ascending: false });
 
@@ -144,13 +147,13 @@ const OrderHistory = () => {
     }
   };
 
-  const fetchMyDeliveries = async () => {
+  const fetchMyDeliveries = async (userId: string) => {
     try {
       // Fetch orders that the current user has claimed for delivery
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('*')
-        .eq('delivery_person_id', currentUserId)
+        .eq('delivery_person_id', userId)
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
@@ -184,11 +187,13 @@ const OrderHistory = () => {
   };
 
   const handleClaimDelivery = async (orderId: number) => {
+    if (!user) return;
+
     try {
       const { error } = await supabase
         .from('orders')
         .update({
-          delivery_person_id: currentUserId,
+          delivery_person_id: user.id,
           claimed_at: new Date().toISOString(),
         })
         .eq('id', orderId);
@@ -201,8 +206,8 @@ const OrderHistory = () => {
       });
 
       // Refresh the lists
-      fetchAvailableDeliveries();
-      fetchMyDeliveries();
+      fetchAvailableDeliveries(user.id);
+      fetchMyDeliveries(user.id);
     } catch (error) {
       console.error('Error claiming delivery:', error);
       toast({
@@ -214,6 +219,8 @@ const OrderHistory = () => {
   };
 
   const handleUnclaimDelivery = async (orderId: number) => {
+    if (!user) return;
+
     try {
       const { error } = await supabase
         .from('orders')
@@ -231,8 +238,8 @@ const OrderHistory = () => {
       });
 
       // Refresh the lists
-      fetchAvailableDeliveries();
-      fetchMyDeliveries();
+      fetchAvailableDeliveries(user.id);
+      fetchMyDeliveries(user.id);
     } catch (error) {
       console.error('Error unclaiming delivery:', error);
       toast({
@@ -244,6 +251,8 @@ const OrderHistory = () => {
   };
 
   const handleCompleteDelivery = async (orderId: number) => {
+    if (!user) return;
+
     try {
       const { error } = await supabase
         .from('orders')
@@ -260,7 +269,7 @@ const OrderHistory = () => {
       });
 
       // Refresh the lists
-      fetchMyDeliveries();
+      fetchMyDeliveries(user.id);
     } catch (error) {
       console.error('Error completing delivery:', error);
       toast({

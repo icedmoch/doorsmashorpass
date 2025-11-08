@@ -73,7 +73,7 @@ export type Database = {
           id: number
           meal_category: string
           servings: number | null
-          user_id: number
+          user_id: string
         }
         Insert: {
           created_at?: string | null
@@ -82,7 +82,7 @@ export type Database = {
           id?: number
           meal_category: string
           servings?: number | null
-          user_id: number
+          user_id: string
         }
         Update: {
           created_at?: string | null
@@ -91,7 +91,7 @@ export type Database = {
           id?: number
           meal_category?: string
           servings?: number | null
-          user_id?: number
+          user_id?: string
         }
         Relationships: [
           {
@@ -99,13 +99,6 @@ export type Database = {
             columns: ["food_item_id"]
             isOneToOne: false
             referencedRelation: "food_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "meal_entries_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -162,7 +155,7 @@ export type Database = {
           delivery_location: string | null
           delivery_longitude: number | null
           delivery_option: string
-          delivery_person_id: number | null
+          delivery_person_id: string | null
           delivery_time: string
           id: number
           special_notes: string | null
@@ -171,7 +164,7 @@ export type Database = {
           total_carbs: number
           total_fat: number
           total_protein: number
-          user_id: number
+          user_id: string
         }
         Insert: {
           claimed_at?: string | null
@@ -180,7 +173,7 @@ export type Database = {
           delivery_location?: string | null
           delivery_longitude?: number | null
           delivery_option: string
-          delivery_person_id?: number | null
+          delivery_person_id?: string | null
           delivery_time: string
           id?: never
           special_notes?: string | null
@@ -189,7 +182,7 @@ export type Database = {
           total_carbs?: number
           total_fat?: number
           total_protein?: number
-          user_id: number
+          user_id: string
         }
         Update: {
           claimed_at?: string | null
@@ -198,7 +191,7 @@ export type Database = {
           delivery_location?: string | null
           delivery_longitude?: number | null
           delivery_option?: string
-          delivery_person_id?: number | null
+          delivery_person_id?: string | null
           delivery_time?: string
           id?: never
           special_notes?: string | null
@@ -207,61 +200,28 @@ export type Database = {
           total_carbs?: number
           total_fat?: number
           total_protein?: number
-          user_id?: number
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "orders_delivery_person_id_fkey"
-            columns: ["delivery_person_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      users: {
+      profiles: {
         Row: {
-          activity_level: string
-          age: number
-          bmr: number | null
           created_at: string | null
-          height_cm: number
-          id: number
-          sex: string
-          tdee: number | null
-          username: string
-          weight_kg: number
+          email: string | null
+          full_name: string | null
+          id: string
         }
         Insert: {
-          activity_level: string
-          age: number
-          bmr?: number | null
           created_at?: string | null
-          height_cm: number
-          id?: number
-          sex: string
-          tdee?: number | null
-          username: string
-          weight_kg: number
+          email?: string | null
+          full_name?: string | null
+          id: string
         }
         Update: {
-          activity_level?: string
-          age?: number
-          bmr?: number | null
           created_at?: string | null
-          height_cm?: number
-          id?: number
-          sex?: string
-          tdee?: number | null
-          username?: string
-          weight_kg?: number
+          email?: string | null
+          full_name?: string | null
+          id?: string
         }
         Relationships: []
       }
