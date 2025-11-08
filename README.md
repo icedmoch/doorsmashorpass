@@ -1,73 +1,108 @@
-# Welcome to your Lovable project
+# 🍽️ DoorSmashOrPass
 
-## Project info
+**HackUMass 2025 Submission**
 
-**URL**: https://lovable.dev/projects/24770e22-2991-4ce9-9817-00f3c5fc3a74
+A smart nutrition tracking app designed specifically for UMass dining hall students. Make informed dining decisions with real-time calorie tracking and AI-powered meal recommendations.
 
-## How can I edit this code?
+## 💡 Inspiration
 
-There are several ways of editing your application.
+College dining halls offer countless meal options, but tracking nutrition information can be tedious and time-consuming. We built DoorSmashOrPass to help students make healthier, more informed dining choices by automatically scraping dining hall menus and providing personalized AI recommendations based on their nutritional goals.
 
-**Use Lovable**
+## 🎯 What It Does
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/24770e22-2991-4ce9-9817-00f3c5fc3a74) and start prompting.
+DoorSmashOrPass simplifies healthy eating at UMass dining halls by:
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Automated Menu Scraping**: Pulls real-time menu data and nutritional information from UMass dining halls
+- **Calorie & Nutrition Tracking**: Tracks your daily intake of calories, protein, carbs, fats, and other key nutrients
+- **AI Meal Recommendations**: Generates personalized, balanced meal suggestions based on:
+  - Your dietary goals (weight loss, muscle gain, maintenance)
+  - Nutritional requirements
+  - Food preferences and restrictions
+  - Available dining hall options for each meal
+- **Smash or Pass Interface**: Swipe through dining options with a fun, intuitive interface
+- **Daily Insights**: View your nutrition trends and get suggestions for balanced eating
 
-**Use your preferred IDE**
+## 🛠️ How We Built It
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+**Tech Stack:**
+- **Frontend**: [Your frontend framework - e.g., React, Vue, or React Native]
+- **Backend**: [Your backend - e.g., Node.js/Express, Python/Flask, Django]
+- **Web Scraping**: [Your scraping tools - e.g., BeautifulSoup, Puppeteer, Selenium]
+- **AI Integration**: [Your AI solution - e.g., OpenAI API, Claude API, local LLM]
+- **Database**: [Your database - e.g., MongoDB, PostgreSQL, Firebase]
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+**Architecture:**
+1. **Scraper Service**: Automatically fetches and parses dining hall menus and nutrition facts
+2. **API Layer**: Serves menu data and user tracking information
+3. **AI Recommendation Engine**: Analyzes user goals and available options to suggest optimal meals
+4. **User Interface**: Intuitive swipe-based interface for meal selection and tracking
 
-Follow these steps:
+## 🚀 Features
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Core Features
+- ✅ Real-time dining hall menu scraping
+- ✅ Comprehensive nutrition fact tracking
+- ✅ Personalized AI meal recommendations
+- ✅ Daily calorie and macro tracking
+- ✅ Multiple dining hall support
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### AI Recommendations Consider:
+- Personal fitness goals
+- Dietary restrictions (vegetarian, vegan, gluten-free, etc.)
+- Balanced macronutrient ratios
+- Vitamin and mineral intake
+- Meal timing and frequency
 
-# Step 3: Install the necessary dependencies.
-npm i
+## 🏆 Challenges We Faced
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+- **Web Scraping Complexity**: Parsing inconsistent HTML structures across different dining hall menu pages
+- **Data Accuracy**: Ensuring nutritional information remains accurate and up-to-date
+- **AI Prompt Engineering**: Fine-tuning prompts to generate practical, achievable meal recommendations
+- **Real-time Updates**: Managing frequent menu changes throughout the day
 
-**Edit a file directly in GitHub**
+## 📚 What We Learned
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- Advanced web scraping techniques for dynamic content
+- Integrating AI APIs for practical, user-facing features
+- Building intuitive nutrition tracking interfaces
+- Working with real-world data sources and handling edge cases
 
-**Use GitHub Codespaces**
+## 🔮 What's Next for DoorSmashOrPass
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- **Meal Planning**: Multi-day meal planning with grocery lists for off-campus cooking
+- **Social Features**: Share meal recommendations with friends and create dining groups
+- **Fitness Integration**: Connect with fitness trackers and apps
+- **Expanded Coverage**: Support for more universities and dining facilities
+- **Recipe Suggestions**: AI-generated recipes using available ingredients
+- **Allergen Alerts**: Real-time notifications for food allergens
 
-## What technologies are used for this project?
+## 🎬 Demo
 
-This project is built with:
+[Link to demo video or live demo]
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📸 Screenshots
 
-## How can I deploy this project?
+[Add screenshots of your app here]
 
-Simply open [Lovable](https://lovable.dev/projects/24770e22-2991-4ce9-9817-00f3c5fc3a74) and click on Share -> Publish.
+## 👥 Team
 
-## Can I connect a custom domain to my Lovable project?
+- **Riddhimaan Senapat** - [Role/Contribution]
+- **Neha Kotturu** - [Role/Contribution]
+- **Haluk Yuzukirmizi** - [Role/Contribution]
+- **Egemen Dag** - [Role/Contribution]
+- **Adriana Caraeni** - [Role/Contribution]
+- **Saukhya Shinde** - [Role/Contribution]
 
-Yes, you can!
+## 🙏 Acknowledgments
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- HackUMass 2025 organizers and sponsors
+- UMass Dining Services for accessible menu information
+- [Any APIs, libraries, or resources you used]
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 📝 License
+
+[Your chosen license - e.g., MIT]
+
+---
+
+**Built with ❤️ at HackUMass 2025**
