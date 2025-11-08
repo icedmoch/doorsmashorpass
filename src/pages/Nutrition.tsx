@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Flame,
   Beef,
@@ -28,6 +29,7 @@ import {
   Edit,
   Trash2,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import {
   BarChart,
@@ -72,6 +74,7 @@ const Nutrition = () => {
     entry: null,
   });
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [expandedMealId, setExpandedMealId] = useState<number | null>(null);
 
   // Form state for adding/editing meals
   const [mealForm, setMealForm] = useState({
@@ -488,43 +491,87 @@ const Nutrition = () => {
               {mealEntries.map((entry) => {
                 const item = entry.food_item;
                 if (!item) return null;
+                const isExpanded = expandedMealId === entry.id;
 
                 return (
-                  <div
+                  <Collapsible
                     key={entry.id}
-                    className="flex items-center justify-between p-4 rounded-xl border border-border bg-background/50 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200 group"
+                    open={isExpanded}
+                    onOpenChange={(open) => setExpandedMealId(open ? entry.id : null)}
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-semibold text-base group-hover:text-primary transition-colors">
-                          {item.name}
-                        </p>
-                        <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                          {entry.meal_category}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>Servings: {entry.servings}</span>
-                        {item.location && <span>{item.location}</span>}
-                      </div>
+                    <div className="rounded-xl border border-border bg-background/50 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200 group">
+                      <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between p-4 cursor-pointer">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-semibold text-base group-hover:text-primary transition-colors">
+                                {item.name}
+                              </p>
+                              <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                                {entry.meal_category}
+                              </Badge>
+                              <ChevronDown 
+                                className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-180' : ''
+                                }`}
+                              />
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span>Servings: {entry.servings}</span>
+                              {item.location && <span>{item.location}</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right bg-muted/50 px-4 py-3 rounded-lg">
+                              <p className="font-bold text-lg text-primary">{Math.round(item.calories * entry.servings)}</p>
+                              <p className="text-xs text-muted-foreground">calories</p>
+                              <p className="text-sm font-semibold mt-1">{Math.round(item.protein * entry.servings)}g</p>
+                              <p className="text-xs text-muted-foreground">protein</p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteMeal(entry.id);
+                              }}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="px-4 pb-4 pt-2 border-t border-border/50">
+                          <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Nutritional Breakdown</h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                              <span className="text-sm text-muted-foreground">Calories</span>
+                              <span className="font-semibold">{Math.round(item.calories * entry.servings)}</span>
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                              <span className="text-sm text-muted-foreground">Protein</span>
+                              <span className="font-semibold">{Math.round(item.protein * entry.servings)}g</span>
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                              <span className="text-sm text-muted-foreground">Carbs</span>
+                              <span className="font-semibold">{Math.round(item.total_carb * entry.servings)}g</span>
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                              <span className="text-sm text-muted-foreground">Fat</span>
+                              <span className="font-semibold">{Math.round(item.total_fat * entry.servings)}g</span>
+                            </div>
+                          </div>
+                          {item.serving_size && (
+                            <p className="text-xs text-muted-foreground mt-3">
+                              Serving size: {item.serving_size}
+                            </p>
+                          )}
+                        </div>
+                      </CollapsibleContent>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right bg-muted/50 px-4 py-3 rounded-lg">
-                        <p className="font-bold text-lg text-primary">{Math.round(item.calories * entry.servings)}</p>
-                        <p className="text-xs text-muted-foreground">calories</p>
-                        <p className="text-sm font-semibold mt-1">{Math.round(item.protein * entry.servings)}g</p>
-                        <p className="text-xs text-muted-foreground">protein</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteMeal(entry.id)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  </Collapsible>
                 );
               })}
             </div>
