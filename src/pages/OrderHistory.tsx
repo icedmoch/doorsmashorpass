@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, Clock, MapPin, Package, Loader2, User, CheckCircle2, XCircle } from "lucide-react";
+import { ChevronLeft, Clock, MapPin, Package, Loader2, User, CheckCircle2, XCircle, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { User as SupabaseUser } from "@supabase/supabase-js";
@@ -119,6 +119,20 @@ const OrderHistory = () => {
       );
 
       setOrders(ordersWithItems as any);
+
+      // Check if there's a recently delivered order to prompt meal tracking
+      const recentlyDelivered = ordersWithItems.find(
+        order => order.status === 'delivered' && 
+        new Date(order.updated_at).getTime() > Date.now() - 60000 && // Delivered in last minute
+        order.items && order.items.length > 0
+      );
+
+      if (recentlyDelivered && !mealTrackingDialog.open) {
+        setMealTrackingDialog({
+          open: true,
+          order: recentlyDelivered as any,
+        });
+      }
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({
@@ -293,19 +307,8 @@ const OrderHistory = () => {
         description: "Great job delivering this order",
       });
 
-      // Find the completed order to show meal tracking dialog
-      const completedOrder = myDeliveries.find(order => order.id === orderId.toString());
-      
       // Refresh the lists
       await fetchMyDeliveries(user.id);
-      
-      // Show meal tracking dialog if order has items
-      if (completedOrder && completedOrder.items && completedOrder.items.length > 0) {
-        setMealTrackingDialog({
-          open: true,
-          order: completedOrder,
-        });
-      }
     } catch (error) {
       console.error('Error completing delivery:', error);
       toast({
@@ -410,7 +413,22 @@ const OrderHistory = () => {
             ) : (
               <div className="space-y-6">
                 {orders.map((order) => (
-                  <OrderCard key={order.id} order={order} showClaimButton={false} />
+                  <div key={order.id}>
+                    <OrderCard order={order} showClaimButton={false} />
+                    {order.status === 'delivered' && order.items && order.items.length > 0 && (
+                      <div className="mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setMealTrackingDialog({ open: true, order })}
+                          className="gap-2"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add to Nutrition Log
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
