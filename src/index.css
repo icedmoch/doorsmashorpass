@@ -43,6 +43,11 @@ All colors MUST be HSL.
     --gradient-warm: linear-gradient(135deg, hsl(25 75% 65%), hsl(35 85% 70%));
     --gradient-subtle: linear-gradient(180deg, hsl(45 20% 99%), hsl(45 20% 97%));
     
+    /* Hero gradient - maroon/food theme */
+    --hero-gradient-start: 350 70% 35%;
+    --hero-gradient-mid: 15 70% 50%;
+    --hero-gradient-end: 30 85% 65%;
+    
     --shadow-soft: 0 2px 8px hsl(155 45% 45% / 0.08);
     --shadow-medium: 0 4px 16px hsl(155 45% 45% / 0.12);
     --shadow-strong: 0 8px 24px hsl(155 45% 45% / 0.16);
@@ -99,6 +104,11 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(155 45% 45%), hsl(170 50% 40%));
     --gradient-warm: linear-gradient(135deg, hsl(25 75% 55%), hsl(35 85% 60%));
     --gradient-subtle: linear-gradient(180deg, hsl(150 15% 12%), hsl(150 15% 10%));
+    
+    /* Hero gradient - maroon/food theme */
+    --hero-gradient-start: 350 70% 25%;
+    --hero-gradient-mid: 15 70% 35%;
+    --hero-gradient-end: 30 85% 45%;
     
     --shadow-soft: 0 2px 8px hsl(0 0% 0% / 0.3);
     --shadow-medium: 0 4px 16px hsl(0 0% 0% / 0.4);
