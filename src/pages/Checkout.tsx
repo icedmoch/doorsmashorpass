@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ChevronLeft, MapPin, Clock } from "lucide-react";
+import { ChevronLeft, MapPin, Clock, Loader2 } from "lucide-react";
 
 const Checkout = () => {
   const { items, totals, clearCart } = useCart();
@@ -17,8 +18,9 @@ const Checkout = () => {
   const [deliveryLocation, setDeliveryLocation] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (deliveryOption === "delivery" && !deliveryLocation) {
       toast({
         title: "Missing information",
@@ -37,14 +39,67 @@ const Checkout = () => {
       return;
     }
 
-    // Here you would normally submit the order to your backend
-    toast({
-      title: "Order placed!",
-      description: `Your order will be ${deliveryOption === "delivery" ? "delivered" : "ready for pickup"} at ${deliveryTime}`,
-    });
+    setIsSubmitting(true);
 
-    clearCart();
-    navigate("/student/menu");
+    try {
+      // Get the current user (for now, using a default user ID of 1)
+      // TODO: Replace with actual authenticated user when auth is implemented
+      const userId = 1;
+
+      // Create the order
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: userId,
+          delivery_option: deliveryOption,
+          delivery_location: deliveryOption === 'delivery' ? deliveryLocation : null,
+          delivery_time: deliveryTime,
+          special_notes: notes || null,
+          status: 'pending',
+          total_calories: totals.calories,
+          total_protein: totals.protein,
+          total_carbs: totals.carbs,
+          total_fat: totals.fat,
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = items.map(item => ({
+        order_id: order.id,
+        food_item_name: item.name,
+        quantity: item.quantity,
+        calories: item.calories,
+        protein: item.protein,
+        carbs: item.carbs,
+        fat: item.fat,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      toast({
+        title: "Order placed!",
+        description: `Your order will be ${deliveryOption === "delivery" ? "delivered" : "ready for pickup"} at ${deliveryTime}`,
+      });
+
+      clearCart();
+      navigate("/student/order-history");
+    } catch (error) {
+      console.error('Error placing order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to place order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (items.length === 0) {
@@ -196,8 +251,15 @@ const Checkout = () => {
               </CardContent>
             </Card>
 
-            <Button onClick={handlePlaceOrder} className="w-full" size="lg">
-              Place Order
+            <Button onClick={handlePlaceOrder} className="w-full" size="lg" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Placing Order...
+                </>
+              ) : (
+                "Place Order"
+              )}
             </Button>
           </div>
         </div>
