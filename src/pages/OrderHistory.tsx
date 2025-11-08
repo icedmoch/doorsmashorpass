@@ -306,11 +306,10 @@ const OrderHistory = () => {
     }
   };
 
-  const handleCompleteDelivery = async (orderId: number) => {
+  const handleMarkAsDelivered = async (orderId: string) => {
     if (!user) return;
 
     try {
-      // Call the edge function to complete delivery and handle payout
       const { error } = await supabase.functions.invoke('complete-delivery-payout', {
         body: { orderId },
       });
@@ -318,17 +317,17 @@ const OrderHistory = () => {
       if (error) throw error;
 
       toast({
-        title: "Delivery completed!",
-        description: "Payment has been processed to your account",
+        title: "Order marked as delivered!",
+        description: "Thank you for confirming delivery",
       });
 
-      // Refresh the lists
-      await fetchMyDeliveries(user.id);
-    } catch (error) {
-      console.error('Error completing delivery:', error);
+      // Refresh orders
+      await fetchOrders(user.id);
+    } catch (error: any) {
+      console.error('Error marking as delivered:', error);
       toast({
         title: "Error",
-        description: "Failed to complete delivery",
+        description: error.message || "Failed to mark order as delivered",
         variant: "destructive",
       });
     }
@@ -357,13 +356,42 @@ const OrderHistory = () => {
   const handleInitiatePayment = async () => {
     if (!pendingOrder || !user) return;
 
-    // For now, we need to wait for a deliverer to be assigned
-    // In a real app, you might create the payment upfront or have a pool of deliverers
-    toast({
-      title: "Waiting for delivery assignment",
-      description: "Your order is waiting for a delivery person to be assigned. Payment will be processed once claimed.",
-    });
-    setShowPaymentDialog(false);
+    // Check if deliverer is assigned
+    if (!pendingOrder.deliverer_id) {
+      toast({
+        title: "Waiting for delivery assignment",
+        description: "Your order is waiting for a delivery person to be assigned. Payment will be processed once claimed.",
+      });
+      setShowPaymentDialog(false);
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: { orderId: pendingOrder.id },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+        setShowPaymentDialog(false);
+        toast({
+          title: "Payment initiated",
+          description: "Complete payment in the opened window",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error creating payment:', error);
+      toast({
+        title: "Payment error",
+        description: error.message || "Failed to create payment session",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   const getStatusColor = (status: OrderStatus) => {
@@ -461,7 +489,16 @@ const OrderHistory = () => {
               <div className="space-y-6">
                 {orders.map((order) => (
                   <div key={order.id}>
-                    <OrderCard order={order} showClaimButton={false} />
+                    <OrderCard 
+                      order={order} 
+                      showClaimButton={false} 
+                      showCustomerActions={true}
+                      onMarkAsDelivered={handleMarkAsDelivered}
+                      onInitiatePayment={() => {
+                        setPendingOrder(order);
+                        setShowPaymentDialog(true);
+                      }}
+                    />
                     {order.status === 'delivered' && order.items && order.items.length > 0 && (
                       <div className="mt-2">
                         <Button
@@ -530,7 +567,10 @@ const OrderHistory = () => {
                     showClaimButton={false}
                     showDeliveryActions={true}
                     onUnclaim={handleUnclaimDelivery}
-                    onComplete={handleCompleteDelivery}
+                    onComplete={(orderId) => {
+                      // This is for deliverer - not used anymore
+                      // The customer marks it as delivered instead
+                    }}
                   />
                 ))}
               </div>
@@ -566,8 +606,13 @@ const OrderHistory = () => {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleInitiatePayment} className="flex-1">
-                  Understand
+                <Button 
+                  onClick={handleInitiatePayment} 
+                  className="flex-1"
+                  disabled={!pendingOrder?.deliverer_id || isProcessingPayment}
+                >
+                  {isProcessingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {!pendingOrder?.deliverer_id ? "Waiting for Deliverer" : "Pay Now"}
                 </Button>
                 <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
                   Close
@@ -585,18 +630,24 @@ type OrderCardProps = {
   order: Order;
   showClaimButton: boolean;
   showDeliveryActions?: boolean;
+  showCustomerActions?: boolean;
   onClaim?: (orderId: number) => void;
   onUnclaim?: (orderId: number) => void;
   onComplete?: (orderId: number) => void;
+  onMarkAsDelivered?: (orderId: string) => void;
+  onInitiatePayment?: () => void;
 };
 
 const OrderCard = ({ 
   order, 
   showClaimButton, 
   showDeliveryActions = false,
+  showCustomerActions = false,
   onClaim, 
   onUnclaim,
-  onComplete 
+  onComplete,
+  onMarkAsDelivered,
+  onInitiatePayment 
 }: OrderCardProps) => {
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
@@ -811,6 +862,46 @@ const OrderCard = ({
                 <XCircle className="mr-2 h-4 w-4" />
                 Unclaim
               </Button>
+            )}
+          </div>
+        )}
+
+        {showCustomerActions && (
+          <div className="space-y-2">
+            {order.deliverer_id && !order.stripe_payment_intent_id && (
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400 mb-2">
+                  Payment Required
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  A deliverer has claimed your order. Please complete payment to proceed.
+                </p>
+                <Button 
+                  className="w-full" 
+                  size="sm"
+                  onClick={onInitiatePayment}
+                >
+                  Pay $10.00
+                </Button>
+              </div>
+            )}
+            {order.stripe_payment_intent_id && order.status !== 'delivered' && (
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <p className="text-sm font-medium text-green-600 dark:text-green-400 mb-2">
+                  Out for Delivery
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Your order is being delivered. Mark as delivered once you receive it.
+                </p>
+                <Button 
+                  className="w-full" 
+                  size="sm"
+                  onClick={() => onMarkAsDelivered?.(order.id)}
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Mark as Delivered
+                </Button>
+              </div>
             )}
           </div>
         )}

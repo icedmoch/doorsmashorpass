@@ -33,56 +33,112 @@ serve(async (req) => {
     
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { orderId, delivererStripeAccountId } = await req.json();
+    const { orderId } = await req.json();
     
-    if (!orderId || !delivererStripeAccountId) {
-      throw new Error("Missing orderId or delivererStripeAccountId");
+    if (!orderId) {
+      throw new Error("Missing orderId");
     }
 
-    logStep("Request params", { orderId, delivererStripeAccountId });
+    logStep("Request params", { orderId });
 
+    // Get order details
+    const { data: order, error: orderError } = await supabaseClient
+      .from("orders")
+      .select("*, profiles!orders_deliverer_id_fkey(stripe_account_id)")
+      .eq("id", orderId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (orderError || !order) {
+      throw new Error("Order not found or unauthorized");
+    }
+
+    logStep("Order fetched", { orderId, delivererId: order.deliverer_id });
+
+    // Check if order has a deliverer assigned
+    if (!order.deliverer_id) {
+      throw new Error("Order must have a deliverer assigned before payment");
+    }
+
+    // Get deliverer's Stripe account
+    const delivererStripeAccount = order.profiles?.stripe_account_id;
+    
+    if (!delivererStripeAccount) {
+      throw new Error("Deliverer has not connected their Stripe account");
+    }
+
+    logStep("Deliverer Stripe account found", { accountId: delivererStripeAccount });
+
+    // Initialize Stripe
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Check if customer exists
+    // Check if a Stripe customer record exists for this user
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-      logStep("Existing customer found", { customerId });
     }
 
-    // Calculate platform fee (2% of $10 = $0.20 = 20 cents)
-    const applicationFeeAmount = 20;
+    logStep("Customer check", { customerId });
 
-    // Create checkout session with destination charge
+    // Create a payment session with destination charge
+    // $10 total: $9.80 to deliverer, $0.20 platform fee
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: "price_1SRHIlATgrbQjCUzKcnPkh91",
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Delivery Fee",
+              description: `Delivery for Order #${orderId}`,
+            },
+            unit_amount: 1000, // $10.00 in cents
+          },
           quantity: 1,
         },
       ],
       mode: "payment",
       payment_intent_data: {
-        application_fee_amount: applicationFeeAmount,
+        application_fee_amount: 20, // Platform fee: $0.20 in cents
         transfer_data: {
-          destination: delivererStripeAccountId,
+          destination: delivererStripeAccount, // Deliverer gets $9.80
+        },
+        metadata: {
+          order_id: orderId,
+          deliverer_id: order.deliverer_id,
         },
       },
       metadata: {
-        orderId: orderId,
+        order_id: orderId,
+        deliverer_id: order.deliverer_id,
       },
-      success_url: `${req.headers.get("origin")}/student/order-history?payment=success`,
-      cancel_url: `${req.headers.get("origin")}/student/checkout?payment=canceled`,
+      success_url: `${req.headers.get("origin")}/student/order-history?payment=success&order=${orderId}`,
+      cancel_url: `${req.headers.get("origin")}/student/order-history?payment=cancelled&order=${orderId}`,
     });
 
-    logStep("Checkout session created", { sessionId: session.id, url: session.url });
+    logStep("Checkout session created", { sessionId: session.id, paymentIntentId: session.payment_intent });
 
-    return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), {
+    // Update order with Stripe session ID
+    const { error: updateError } = await supabaseClient
+      .from("orders")
+      .update({ 
+        stripe_session_id: session.id,
+        stripe_payment_intent_id: session.payment_intent as string,
+      })
+      .eq("id", orderId);
+
+    if (updateError) {
+      logStep("Error updating order", { error: updateError });
+      throw updateError;
+    }
+
+    logStep("Order updated with payment info");
+
+    return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
