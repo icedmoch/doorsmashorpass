@@ -1,8 +1,21 @@
 import { useState } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import type { LatLngExpression } from "leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+
+// Fix default marker icon
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
 
 interface LocationPickerProps {
   onLocationSelect: (lat: number, lng: number, address: string) => void;
@@ -11,12 +24,11 @@ interface LocationPickerProps {
 }
 
 function LocationMarker({ onLocationSelect }: { onLocationSelect: (lat: number, lng: number) => void }) {
-  const [position, setPosition] = useState<LatLngExpression | null>(null);
+  const [position, setPosition] = useState<L.LatLng | null>(null);
 
   useMapEvents({
     click(e) {
-      const pos: LatLngExpression = [e.latlng.lat, e.latlng.lng];
-      setPosition(pos);
+      setPosition(e.latlng);
       onLocationSelect(e.latlng.lat, e.latlng.lng);
     },
   });
@@ -26,7 +38,7 @@ function LocationMarker({ onLocationSelect }: { onLocationSelect: (lat: number, 
 
 export const LocationPicker = ({ onLocationSelect, initialLat, initialLng }: LocationPickerProps) => {
   const [address, setAddress] = useState("");
-  const defaultCenter: LatLngExpression = [initialLat || 40.7128, initialLng || -74.0060];
+  const defaultCenter: [number, number] = [initialLat || 40.7128, initialLng || -74.0060];
 
   const handleLocationClick = async (lat: number, lng: number) => {
     try {
