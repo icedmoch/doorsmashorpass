@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, UtensilsCrossed, Apple, LogOut } from "lucide-react";
+import { MessageSquare, UtensilsCrossed, Apple, LogOut, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -75,6 +75,18 @@ const Navbar = () => {
               <MessageSquare className="h-4 w-4" />
               <span>Chat</span>
             </Link>
+            <Link
+              to="/student/order-history"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200",
+                isActive("/student/order-history")
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <ClipboardList className="h-4 w-4" />
+              <span>Orders</span>
+            </Link>
           </div>
           
           {/* User Profile & Logout */}
@@ -127,6 +139,18 @@ const Navbar = () => {
           >
             <MessageSquare className="h-5 w-5" />
             <span className="text-xs font-medium">Chat</span>
+          </Link>
+          <Link
+            to="/student/order-history"
+            className={cn(
+              "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
+              isActive("/student/order-history")
+                ? "text-primary"
+                : "text-muted-foreground"
+            )}
+          >
+            <ClipboardList className="h-5 w-5" />
+            <span className="text-xs font-medium">Orders</span>
           </Link>
         </div>
       </div>

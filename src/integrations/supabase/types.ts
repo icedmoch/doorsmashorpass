@@ -110,6 +110,103 @@ export type Database = {
           },
         ]
       }
+      order_items: {
+        Row: {
+          calories: number
+          carbs: number
+          created_at: string
+          fat: number
+          food_item_name: string
+          id: number
+          order_id: number
+          protein: number
+          quantity: number
+        }
+        Insert: {
+          calories?: number
+          carbs?: number
+          created_at?: string
+          fat?: number
+          food_item_name: string
+          id?: never
+          order_id: number
+          protein?: number
+          quantity?: number
+        }
+        Update: {
+          calories?: number
+          carbs?: number
+          created_at?: string
+          fat?: number
+          food_item_name?: string
+          id?: never
+          order_id?: number
+          protein?: number
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          delivery_location: string | null
+          delivery_option: string
+          delivery_time: string
+          id: number
+          special_notes: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          total_calories: number
+          total_carbs: number
+          total_fat: number
+          total_protein: number
+          user_id: number
+        }
+        Insert: {
+          created_at?: string
+          delivery_location?: string | null
+          delivery_option: string
+          delivery_time: string
+          id?: never
+          special_notes?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total_calories?: number
+          total_carbs?: number
+          total_fat?: number
+          total_protein?: number
+          user_id: number
+        }
+        Update: {
+          created_at?: string
+          delivery_location?: string | null
+          delivery_option?: string
+          delivery_time?: string
+          id?: never
+          special_notes?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total_calories?: number
+          total_carbs?: number
+          total_fat?: number
+          total_protein?: number
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           activity_level: string
@@ -157,7 +254,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      order_status:
+        | "pending"
+        | "preparing"
+        | "ready"
+        | "out_for_delivery"
+        | "delivered"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -284,6 +387,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      order_status: [
+        "pending",
+        "preparing",
+        "ready",
+        "out_for_delivery",
+        "delivered",
+        "cancelled",
+      ],
+    },
   },
 } as const

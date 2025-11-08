@@ -8,6 +8,7 @@ import Landing from "./pages/Landing";
 import Chatbot from "./pages/Chatbot";
 import Menu from "./pages/Menu";
 import Checkout from "./pages/Checkout";
+import OrderHistory from "./pages/OrderHistory";
 import Nutrition from "./pages/Nutrition";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/student/nutrition" element={<ProtectedRoute><Nutrition /></ProtectedRoute>} />
             <Route path="/student/menu" element={<ProtectedRoute><Menu /></ProtectedRoute>} />
             <Route path="/student/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+            <Route path="/student/order-history" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
             <Route path="/student/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
