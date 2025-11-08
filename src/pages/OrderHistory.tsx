@@ -11,6 +11,7 @@ import { ChevronLeft, Clock, MapPin, Package, Loader2, User, CheckCircle2, XCirc
 import { toast } from "@/hooks/use-toast";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { User as SupabaseUser } from "@supabase/supabase-js";
+import { MealTrackingDialog } from "@/components/MealTrackingDialog";
 
 type OrderStatus = 'pending' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -53,6 +54,10 @@ const OrderHistory = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("my-orders");
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [mealTrackingDialog, setMealTrackingDialog] = useState<{ open: boolean; order: Order | null }>({
+    open: false,
+    order: null,
+  });
 
   useEffect(() => {
     const initAuth = async () => {
@@ -288,8 +293,19 @@ const OrderHistory = () => {
         description: "Great job delivering this order",
       });
 
+      // Find the completed order to show meal tracking dialog
+      const completedOrder = myDeliveries.find(order => order.id === orderId.toString());
+      
       // Refresh the lists
-      fetchMyDeliveries(user.id);
+      await fetchMyDeliveries(user.id);
+      
+      // Show meal tracking dialog if order has items
+      if (completedOrder && completedOrder.items && completedOrder.items.length > 0) {
+        setMealTrackingDialog({
+          open: true,
+          order: completedOrder,
+        });
+      }
     } catch (error) {
       console.error('Error completing delivery:', error);
       toast({
@@ -456,6 +472,16 @@ const OrderHistory = () => {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Meal Tracking Dialog */}
+        {mealTrackingDialog.order && (
+          <MealTrackingDialog
+            open={mealTrackingDialog.open}
+            onOpenChange={(open) => setMealTrackingDialog({ open, order: null })}
+            orderItems={mealTrackingDialog.order.items || []}
+            orderId={mealTrackingDialog.order.id}
+          />
+        )}
       </div>
     </div>
   );
@@ -690,3 +716,6 @@ const OrderCard = ({
 };
 
 export default OrderHistory;
+
+// Add meal tracking dialog at the end of the main component before the export
+// Insert before line 708
