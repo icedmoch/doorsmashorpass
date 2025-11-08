@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import MenuItemCard from "@/components/MenuItemCard";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/select";
 
 const MenuContent = () => {
+  const navigate = useNavigate();
   const { items: cartItems, removeItem, updateQuantity, totals, clearCart } = useCart();
   const [selectedHall, setSelectedHall] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -260,7 +262,10 @@ const MenuContent = () => {
               
               {cartItems.length > 0 && (
                 <div className="space-y-2 mt-4">
-                  <Button className="w-full bg-gradient-to-r from-primary to-primary/90">
+                  <Button 
+                    className="w-full bg-gradient-to-r from-primary to-primary/90"
+                    onClick={() => navigate("/student/checkout")}
+                  >
                     Checkout
                   </Button>
                   <Button
