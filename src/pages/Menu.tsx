@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Search, ShoppingCart, SlidersHorizontal, Minus, Plus, Trash2 } from "lucide-react";
-import { CartProvider, useCart } from "@/contexts/CartContext";
+import { useCart } from "@/contexts/CartContext";
 import {
   Select,
   SelectContent,
@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const MenuContent = () => {
+const Menu = () => {
   const navigate = useNavigate();
   const { items: cartItems, removeItem, updateQuantity, totals, clearCart } = useCart();
   const [selectedHall, setSelectedHall] = useState("all");
@@ -289,14 +289,6 @@ const MenuContent = () => {
         </div>
       </div>
     </div>
-  );
-};
-
-const Menu = () => {
-  return (
-    <CartProvider>
-      <MenuContent />
-    </CartProvider>
   );
 };
 
