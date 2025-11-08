@@ -17,9 +17,16 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Use anon key for user authentication
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+  );
+
+  // Use service role key for accessing deliverer profile (bypasses RLS)
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
 
   try {
@@ -41,15 +48,21 @@ serve(async (req) => {
 
     logStep("Request params", { orderId });
 
-    // Get order details
+    // Get order details (using user's auth context)
     const { data: order, error: orderError } = await supabaseClient
       .from("orders")
-      .select("*, profiles!orders_deliverer_id_fkey(stripe_account_id)")
+      .select("*")
       .eq("id", orderId)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (orderError || !order) {
+    if (orderError) {
+      logStep("Order fetch error", { error: orderError });
+      throw new Error(`Database error: ${orderError.message}`);
+    }
+
+    if (!order) {
+      logStep("Order not found", { orderId, userId: user.id });
       throw new Error("Order not found or unauthorized");
     }
 
@@ -60,14 +73,24 @@ serve(async (req) => {
       throw new Error("Order must have a deliverer assigned before payment");
     }
 
-    // Get deliverer's Stripe account
-    const delivererStripeAccount = order.profiles?.stripe_account_id;
-    
-    if (!delivererStripeAccount) {
+    // Get deliverer's Stripe account (using admin client to bypass RLS)
+    const { data: delivererProfile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("stripe_account_id")
+      .eq("id", order.deliverer_id)
+      .maybeSingle();
+
+    if (profileError) {
+      logStep("Profile fetch error", { error: profileError });
+      throw new Error(`Failed to fetch deliverer profile: ${profileError.message}`);
+    }
+
+    if (!delivererProfile?.stripe_account_id) {
+      logStep("No Stripe account", { delivererId: order.deliverer_id });
       throw new Error("Deliverer has not connected their Stripe account");
     }
 
-    logStep("Deliverer Stripe account found", { accountId: delivererStripeAccount });
+    logStep("Deliverer Stripe account found", { accountId: delivererProfile.stripe_account_id });
 
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
@@ -105,7 +128,7 @@ serve(async (req) => {
       payment_intent_data: {
         application_fee_amount: 20, // Platform fee: $0.20 in cents
         transfer_data: {
-          destination: delivererStripeAccount, // Deliverer gets $9.80
+          destination: delivererProfile.stripe_account_id, // Deliverer gets $9.80
         },
         metadata: {
           order_id: orderId,
@@ -122,8 +145,8 @@ serve(async (req) => {
 
     logStep("Checkout session created", { sessionId: session.id, paymentIntentId: session.payment_intent });
 
-    // Update order with Stripe session ID
-    const { error: updateError } = await supabaseClient
+    // Update order with Stripe session ID (using admin to bypass RLS)
+    const { error: updateError } = await supabaseAdmin
       .from("orders")
       .update({ 
         stripe_session_id: session.id,
