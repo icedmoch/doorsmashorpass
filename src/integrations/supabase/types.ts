@@ -72,8 +72,8 @@ export type Database = {
           food_item_id: number
           id: number
           meal_category: string
+          profile_id: string
           servings: number | null
-          user_id: number
         }
         Insert: {
           created_at?: string | null
@@ -81,8 +81,8 @@ export type Database = {
           food_item_id: number
           id?: number
           meal_category: string
+          profile_id: string
           servings?: number | null
-          user_id: number
         }
         Update: {
           created_at?: string | null
@@ -90,8 +90,8 @@ export type Database = {
           food_item_id?: number
           id?: number
           meal_category?: string
+          profile_id?: string
           servings?: number | null
-          user_id?: number
         }
         Relationships: [
           {
@@ -102,10 +102,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "meal_entries_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "meal_entries_profile_id_fkey"
+            columns: ["profile_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -214,6 +214,7 @@ export type Database = {
         Row: {
           activity_level: number | null
           age: number | null
+          bmr: number | null
           created_at: string | null
           email: string | null
           full_name: string | null
@@ -222,12 +223,14 @@ export type Database = {
           id: string
           onboarding_completed: boolean | null
           sex: string | null
+          tdee: number | null
           weight_kg: number | null
           weight_unit: string | null
         }
         Insert: {
           activity_level?: number | null
           age?: number | null
+          bmr?: number | null
           created_at?: string | null
           email?: string | null
           full_name?: string | null
@@ -236,12 +239,14 @@ export type Database = {
           id: string
           onboarding_completed?: boolean | null
           sex?: string | null
+          tdee?: number | null
           weight_kg?: number | null
           weight_unit?: string | null
         }
         Update: {
           activity_level?: number | null
           age?: number | null
+          bmr?: number | null
           created_at?: string | null
           email?: string | null
           full_name?: string | null
@@ -250,60 +255,11 @@ export type Database = {
           id?: string
           onboarding_completed?: boolean | null
           sex?: string | null
+          tdee?: number | null
           weight_kg?: number | null
           weight_unit?: string | null
         }
         Relationships: []
-      }
-      users: {
-        Row: {
-          activity_level: string
-          age: number
-          bmr: number | null
-          created_at: string | null
-          height_cm: number
-          id: number
-          profile_id: string | null
-          sex: string
-          tdee: number | null
-          username: string
-          weight_kg: number
-        }
-        Insert: {
-          activity_level: string
-          age: number
-          bmr?: number | null
-          created_at?: string | null
-          height_cm: number
-          id?: number
-          profile_id?: string | null
-          sex: string
-          tdee?: number | null
-          username: string
-          weight_kg: number
-        }
-        Update: {
-          activity_level?: string
-          age?: number
-          bmr?: number | null
-          created_at?: string | null
-          height_cm?: number
-          id?: number
-          profile_id?: string | null
-          sex?: string
-          tdee?: number | null
-          username?: string
-          weight_kg?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "users_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
