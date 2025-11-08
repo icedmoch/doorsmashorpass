@@ -14,11 +14,29 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const location = useLocation();
 
   useEffect(() => {
-    // Check user auth state
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Check if onboarding is completed
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("id", user.id)
+          .single();
+
+        // Redirect to onboarding if not completed (unless already on onboarding page)
+        if (profile && !profile.onboarding_completed && location.pathname !== "/onboarding") {
+          window.location.href = "/onboarding";
+          return;
+        }
+      }
+      
       setUser(user);
       setLoading(false);
-    });
+    };
+
+    checkUser();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -27,7 +45,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [location]);
 
   if (loading) {
     return (

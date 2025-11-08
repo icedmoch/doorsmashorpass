@@ -15,7 +15,7 @@ import { User as SupabaseUser } from "@supabase/supabase-js";
 type OrderStatus = 'pending' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
 type OrderItem = {
-  id: number;
+  id: string;
   food_item_name: string;
   quantity: number;
   calories: number;
@@ -25,21 +25,23 @@ type OrderItem = {
 };
 
 type Order = {
-  id: number;
-  delivery_option: string;
-  delivery_location: string | null;
-  delivery_latitude: number | null;
-  delivery_longitude: number | null;
+  id: string;
+  delivery_location: string;
   delivery_time: string;
-  special_notes: string | null;
+  special_instructions: string | null;
   status: OrderStatus;
   total_calories: number;
   total_protein: number;
   total_carbs: number;
   total_fat: number;
   created_at: string;
+  updated_at: string;
   items?: OrderItem[];
   user_id: string;
+  delivery_option?: string;
+  delivery_latitude?: number | null;
+  delivery_longitude?: number | null;
+  special_notes?: string | null;
 };
 
 const OrderHistory = () => {
@@ -104,12 +106,13 @@ const OrderHistory = () => {
 
           return {
             ...order,
+            status: order.status as OrderStatus,
             items: items || [],
           };
         })
       );
 
-      setOrders(ordersWithItems);
+      setOrders(ordersWithItems as any);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({
@@ -128,11 +131,9 @@ const OrderHistory = () => {
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('*')
-        .eq('delivery_option', 'delivery')
-        .is('delivery_person_id', null)
         .neq('user_id', userId)
         .in('status', ['pending', 'preparing', 'ready'])
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) as any;
 
       if (ordersError) throw ordersError;
 
@@ -153,7 +154,7 @@ const OrderHistory = () => {
         })
       );
 
-      setAvailableDeliveries(ordersWithItems);
+      setAvailableDeliveries(ordersWithItems as any);
     } catch (error) {
       console.error('Error fetching available deliveries:', error);
       toast({
@@ -170,8 +171,8 @@ const OrderHistory = () => {
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('*')
-        .eq('delivery_person_id', userId)
-        .order('created_at', { ascending: false });
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false }) as any;
 
       if (ordersError) throw ordersError;
 
@@ -192,7 +193,7 @@ const OrderHistory = () => {
         })
       );
 
-      setMyDeliveries(ordersWithItems);
+      setMyDeliveries(ordersWithItems as any);
     } catch (error) {
       console.error('Error fetching my deliveries:', error);
       toast({
@@ -210,10 +211,9 @@ const OrderHistory = () => {
       const { error } = await supabase
         .from('orders')
         .update({
-          delivery_person_id: user.id,
-          claimed_at: new Date().toISOString(),
+          status: 'preparing',
         })
-        .eq('id', orderId);
+        .eq('id', orderId as any);
 
       if (error) throw error;
 
@@ -242,10 +242,9 @@ const OrderHistory = () => {
       const { error } = await supabase
         .from('orders')
         .update({
-          delivery_person_id: null,
-          claimed_at: null,
+          status: 'cancelled',
         })
-        .eq('id', orderId);
+        .eq('id', orderId as any);
 
       if (error) throw error;
 
@@ -276,7 +275,7 @@ const OrderHistory = () => {
         .update({
           status: 'delivered',
         })
-        .eq('id', orderId);
+        .eq('id', orderId as any);
 
       if (error) throw error;
 
@@ -641,7 +640,7 @@ const OrderCard = ({
         {showClaimButton && onClaim && (
           <Button 
             className="w-full" 
-            onClick={() => onClaim(order.id)}
+            onClick={() => onClaim(order.id as any)}
           >
             <User className="mr-2 h-4 w-4" />
             Claim This Delivery
@@ -653,7 +652,7 @@ const OrderCard = ({
             {order.status !== 'delivered' && onComplete && (
               <Button 
                 className="flex-1" 
-                onClick={() => onComplete(order.id)}
+                onClick={() => onComplete(order.id as any)}
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 Mark as Delivered
@@ -663,7 +662,7 @@ const OrderCard = ({
               <Button 
                 variant="outline" 
                 className="flex-1" 
-                onClick={() => onUnclaim(order.id)}
+                onClick={() => onUnclaim(order.id as any)}
               >
                 <XCircle className="mr-2 h-4 w-4" />
                 Unclaim

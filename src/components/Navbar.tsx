@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, UtensilsCrossed, Apple, LogOut, ClipboardList } from "lucide-react";
+import { MessageSquare, UtensilsCrossed, Apple, LogOut, ClipboardList, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -90,11 +90,14 @@ const Navbar = () => {
           
           {/* User Profile & Logout */}
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/student/settings")}>
+              <Settings className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               <span className="hidden lg:inline">Logout</span>
             </Button>
-            <Avatar className="h-9 w-9 cursor-pointer ring-2 ring-primary/20 hover:ring-primary/40 transition-all duration-200">
+            <Avatar className="h-9 w-9 cursor-pointer ring-2 ring-primary/20 hover:ring-primary/40 transition-all duration-200" onClick={() => navigate("/student/settings")}>
               <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student" alt="Student" />
               <AvatarFallback className="bg-primary text-primary-foreground">ST</AvatarFallback>
             </Avatar>
