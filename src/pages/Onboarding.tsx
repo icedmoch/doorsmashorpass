@@ -16,9 +16,7 @@ const Onboarding = () => {
     age: "",
     sex: "Male",
     height: "",
-    heightUnit: "cm",
     weight: "",
-    weightUnit: "kg",
     activityLevel: "3",
   });
 
@@ -30,24 +28,13 @@ const Onboarding = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      // Convert height to cm and weight to kg for storage
-      const heightInCm = formData.heightUnit === "inches" 
-        ? parseFloat(formData.height) * 2.54 
-        : parseFloat(formData.height);
-      
-      const weightInKg = formData.weightUnit === "lbs"
-        ? parseFloat(formData.weight) * 0.453592
-        : parseFloat(formData.weight);
-
       const { error } = await supabase
         .from("profiles")
         .update({
           age: parseInt(formData.age),
           sex: formData.sex,
-          height_cm: heightInCm,
-          height_unit: formData.heightUnit,
-          weight_kg: weightInKg,
-          weight_unit: formData.weightUnit,
+          height_inches: parseFloat(formData.height),
+          weight_lbs: parseFloat(formData.weight),
           activity_level: parseInt(formData.activityLevel),
           onboarding_completed: true,
         })
@@ -121,64 +108,30 @@ const Onboarding = () => {
 
           {/* Height */}
           <div>
-            <Label htmlFor="height">Height</Label>
-            <div className="flex gap-2">
-              <Input
-                id="height"
-                type="number"
-                required
-                value={formData.height}
-                onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                placeholder="Enter height"
-                step="0.1"
-                className="flex-1"
-              />
-              <RadioGroup
-                value={formData.heightUnit}
-                onValueChange={(value) => setFormData({ ...formData, heightUnit: value })}
-                className="flex gap-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="cm" id="cm" />
-                  <Label htmlFor="cm" className="font-normal">cm</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="inches" id="inches" />
-                  <Label htmlFor="inches" className="font-normal">inches</Label>
-                </div>
-              </RadioGroup>
-            </div>
+            <Label htmlFor="height">Height (inches)</Label>
+            <Input
+              id="height"
+              type="number"
+              required
+              value={formData.height}
+              onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+              placeholder="Enter height in inches"
+              step="0.1"
+            />
           </div>
 
           {/* Weight */}
           <div>
-            <Label htmlFor="weight">Weight</Label>
-            <div className="flex gap-2">
-              <Input
-                id="weight"
-                type="number"
-                required
-                value={formData.weight}
-                onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                placeholder="Enter weight"
-                step="0.1"
-                className="flex-1"
-              />
-              <RadioGroup
-                value={formData.weightUnit}
-                onValueChange={(value) => setFormData({ ...formData, weightUnit: value })}
-                className="flex gap-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="kg" id="kg" />
-                  <Label htmlFor="kg" className="font-normal">kg</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="lbs" id="lbs" />
-                  <Label htmlFor="lbs" className="font-normal">lbs</Label>
-                </div>
-              </RadioGroup>
-            </div>
+            <Label htmlFor="weight">Weight (lbs)</Label>
+            <Input
+              id="weight"
+              type="number"
+              required
+              value={formData.weight}
+              onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+              placeholder="Enter weight in lbs"
+              step="0.1"
+            />
           </div>
 
           {/* Activity Level */}

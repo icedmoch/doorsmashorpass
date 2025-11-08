@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_history: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       food_items: {
         Row: {
           calories: number
@@ -243,14 +275,12 @@ export type Database = {
           created_at: string | null
           email: string | null
           full_name: string | null
-          height_cm: number | null
-          height_unit: string | null
+          height_inches: number | null
           id: string
           onboarding_completed: boolean | null
           sex: string | null
           tdee: number | null
-          weight_kg: number | null
-          weight_unit: string | null
+          weight_lbs: number | null
         }
         Insert: {
           activity_level?: number | null
@@ -259,14 +289,12 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           full_name?: string | null
-          height_cm?: number | null
-          height_unit?: string | null
+          height_inches?: number | null
           id: string
           onboarding_completed?: boolean | null
           sex?: string | null
           tdee?: number | null
-          weight_kg?: number | null
-          weight_unit?: string | null
+          weight_lbs?: number | null
         }
         Update: {
           activity_level?: number | null
@@ -275,14 +303,12 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           full_name?: string | null
-          height_cm?: number | null
-          height_unit?: string | null
+          height_inches?: number | null
           id?: string
           onboarding_completed?: boolean | null
           sex?: string | null
           tdee?: number | null
-          weight_kg?: number | null
-          weight_unit?: string | null
+          weight_lbs?: number | null
         }
         Relationships: []
       }
