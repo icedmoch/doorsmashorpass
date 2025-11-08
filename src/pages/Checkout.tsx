@@ -23,6 +23,7 @@ const Checkout = () => {
   const [deliveryTime, setDeliveryTime] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -55,21 +56,20 @@ const Checkout = () => {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to place an order",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      if (!user) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to place an order",
-          variant: "destructive",
-        });
-        navigate("/auth");
-        return;
-      }
-
-      // Create the order
-      // Convert time string to full timestamp
+      // Create the order first
       let deliveryTimestamp = null;
       if (deliveryTime) {
         const today = new Date();
@@ -118,13 +118,18 @@ const Checkout = () => {
 
       if (itemsError) throw itemsError;
 
+      // Store order ID in localStorage so we can update it after payment
+      localStorage.setItem('pendingOrderId', order.id);
+
       toast({
-        title: "Order placed!",
-        description: `Your order will be delivered at ${deliveryTime}`,
+        title: "Order created!",
+        description: "Redirecting to payment...",
       });
 
       clearCart();
-      navigate("/student/order-history");
+      
+      // Redirect to payment waiting page
+      navigate(`/student/order-history?order=${order.id}&payment=pending`);
     } catch (error) {
       console.error('Error placing order:', error);
       toast({
@@ -215,6 +220,12 @@ const Checkout = () => {
                   <div className="flex justify-between text-sm">
                     <span>Total Fat:</span>
                     <span className="font-semibold">{totals.fat}g</span>
+                  </div>
+                  <div className="pt-4 border-t">
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Delivery Fee:</span>
+                      <span>$10.00</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>
