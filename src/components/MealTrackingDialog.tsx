@@ -58,7 +58,7 @@ export function MealTrackingDialog({
       const servingMultiplier = parseFloat(servings);
       const location = orderItems[0]?.dining_hall || "Custom";
       const currentDate = new Date().toISOString().split('T')[0];
-      const mealType = "lunch";
+      const mealType = "Lunch";
 
       // Check if food item already exists
       const { data: existingFoodItem } = await supabase
@@ -106,7 +106,7 @@ export function MealTrackingDialog({
         .insert({
           profile_id: user.id,
           food_item_id: foodItem.id,
-          meal_category: "lunch",
+          meal_category: "Lunch",
           entry_date: new Date().toISOString().split('T')[0],
           servings: servingMultiplier,
         });
