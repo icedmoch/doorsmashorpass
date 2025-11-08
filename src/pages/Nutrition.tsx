@@ -14,14 +14,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Flame, Beef, Cookie, Salad, Calendar, TrendingUp, Award, Droplet, Plus, Edit, Trash2, Loader2 } from "lucide-react";
+  Flame,
+  Beef,
+  Cookie,
+  Salad,
+  Calendar,
+  TrendingUp,
+  Award,
+  Droplet,
+  Plus,
+  Edit,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -83,7 +90,9 @@ const Nutrition = () => {
 
   const fetchData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
       // Fetch user profile for TDEE
@@ -97,18 +106,20 @@ const Nutrition = () => {
       setUserProfile(profile);
 
       // Fetch meal entries for today
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split("T")[0];
       const { data: entries, error: entriesError } = await supabase
         .from("meal_entries")
-        .select(`
+        .select(
+          `
           *,
           food_item:food_items(*)
-        `)
+        `,
+        )
         .eq("profile_id", user.id)
         .eq("entry_date", today);
 
       if (entriesError) throw entriesError;
-      setMealEntries(entries as any || []);
+      setMealEntries((entries as any) || []);
     } catch (error: any) {
       console.error("Error fetching data:", error);
       toast({
@@ -123,11 +134,13 @@ const Nutrition = () => {
 
   const handleAddMeal = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      const currentDate = new Date().toISOString().split('T')[0];
-      
+      const currentDate = new Date().toISOString().split("T")[0];
+
       // Check if food item already exists
       const { data: existingFoodItem } = await supabase
         .from("food_items")
@@ -169,15 +182,13 @@ const Nutrition = () => {
       }
 
       // Create meal entry
-      const { error: entryError } = await supabase
-        .from("meal_entries")
-        .insert({
-          profile_id: user.id,
-          food_item_id: foodItem.id,
-          meal_category: mealForm.category,
-          entry_date: new Date().toISOString().split('T')[0],
-          servings: parseFloat(mealForm.servings),
-        });
+      const { error: entryError } = await supabase.from("meal_entries").insert({
+        profile_id: user.id,
+        food_item_id: foodItem.id,
+        meal_category: mealForm.category,
+        entry_date: new Date().toISOString().split("T")[0],
+        servings: parseFloat(mealForm.servings),
+      });
 
       if (entryError) throw entryError;
 
@@ -208,10 +219,7 @@ const Nutrition = () => {
 
   const handleDeleteMeal = async (entryId: number) => {
     try {
-      const { error } = await supabase
-        .from("meal_entries")
-        .delete()
-        .eq("id", entryId);
+      const { error } = await supabase.from("meal_entries").delete().eq("id", entryId);
 
       if (error) throw error;
 
@@ -232,10 +240,7 @@ const Nutrition = () => {
 
   const handleUpdateServings = async (entryId: number, newServings: number) => {
     try {
-      const { error } = await supabase
-        .from("meal_entries")
-        .update({ servings: newServings })
-        .eq("id", entryId);
+      const { error } = await supabase.from("meal_entries").update({ servings: newServings }).eq("id", entryId);
 
       if (error) throw error;
 
@@ -265,7 +270,7 @@ const Nutrition = () => {
         fat: acc.fat + (entry.food_item?.total_fat || 0) * multiplier,
       };
     },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    { calories: 0, protein: 0, carbs: 0, fat: 0 },
   );
 
   const tdeeGoal = userProfile?.tdee || 2000;
@@ -288,7 +293,7 @@ const Nutrition = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
@@ -303,7 +308,7 @@ const Nutrition = () => {
             Add Meal
           </Button>
         </div>
-        
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
@@ -339,7 +344,7 @@ const Nutrition = () => {
             color="accent"
           />
         </div>
-        
+
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <Card className="p-6 shadow-lg border-border/50 bg-card/50 backdrop-blur-sm">
@@ -372,12 +377,12 @@ const Nutrition = () => {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
+                  <Tooltip
+                    contentStyle={{
                       backgroundColor: "hsl(var(--popover))",
                       border: "1px solid hsl(var(--border))",
                       borderRadius: "0.5rem",
-                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                     }}
                   />
                 </PieChart>
@@ -386,7 +391,10 @@ const Nutrition = () => {
             <div className="flex justify-center gap-6 mt-4">
               {macroData.map((macro) => (
                 <div key={macro.name} className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full border-2 border-background shadow-sm" style={{ backgroundColor: macro.color }}></div>
+                  <div
+                    className="w-4 h-4 rounded-full border-2 border-background shadow-sm"
+                    style={{ backgroundColor: macro.color }}
+                  ></div>
                   <div className="flex flex-col">
                     <span className="text-xs text-muted-foreground">{macro.name}</span>
                     <span className="text-sm font-semibold">{macro.value}g</span>
@@ -395,7 +403,7 @@ const Nutrition = () => {
               ))}
             </div>
           </Card>
-          
+
           <Card className="p-6 shadow-lg border-border/50 bg-card/50 backdrop-blur-sm">
             <div className="mb-6">
               <h3 className="font-semibold text-xl mb-1">Daily Goals</h3>
@@ -405,31 +413,39 @@ const Nutrition = () => {
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="text-sm font-semibold">Calories</span>
-                  <span className="text-sm font-bold text-primary">{Math.round(todayTotals.calories)} / {tdeeGoal}</span>
+                  <span className="text-sm font-bold text-primary">
+                    {Math.round(todayTotals.calories)} / {tdeeGoal}
+                  </span>
                 </div>
                 <div className="h-3 bg-muted/50 rounded-full overflow-hidden border border-border/50">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-primary via-primary to-primary/90 rounded-full transition-all duration-500"
                     style={{ width: `${Math.min((todayTotals.calories / tdeeGoal) * 100, 100)}%` }}
                   ></div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{Math.round((todayTotals.calories / tdeeGoal) * 100)}% of daily goal</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {Math.round((todayTotals.calories / tdeeGoal) * 100)}% of daily goal
+                </p>
               </div>
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="text-sm font-semibold">Protein</span>
-                  <span className="text-sm font-bold text-primary">{Math.round(todayTotals.protein)} / {proteinGoal}g</span>
+                  <span className="text-sm font-bold text-primary">
+                    {Math.round(todayTotals.protein)} / {proteinGoal}g
+                  </span>
                 </div>
                 <div className="h-3 bg-muted/50 rounded-full overflow-hidden border border-border/50">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-primary via-primary to-primary/90 rounded-full transition-all duration-500"
                     style={{ width: `${Math.min((todayTotals.protein / proteinGoal) * 100, 100)}%` }}
                   ></div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{Math.round((todayTotals.protein / proteinGoal) * 100)}% of daily goal</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {Math.round((todayTotals.protein / proteinGoal) * 100)}% of daily goal
+                </p>
               </div>
             </div>
-            
+
             <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/30">
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-accent/20 rounded-lg">
@@ -440,17 +456,16 @@ const Nutrition = () => {
                     {todayTotals.calories < tdeeGoal ? "Keep going!" : "Great job!"}
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    {todayTotals.calories < tdeeGoal 
+                    {todayTotals.calories < tdeeGoal
                       ? `You have ${Math.round(tdeeGoal - todayTotals.calories)} calories left for today.`
-                      : "You've reached your calorie goal for today!"
-                    }
+                      : "You've reached your calorie goal for today!"}
                   </p>
                 </div>
               </div>
             </div>
           </Card>
         </div>
-        
+
         {/* Meal History */}
         <Card className="p-6 shadow-lg border-border/50 bg-card/50 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-6">
@@ -473,16 +488,20 @@ const Nutrition = () => {
               {mealEntries.map((entry) => {
                 const item = entry.food_item;
                 if (!item) return null;
-                
+
                 return (
-                  <div 
+                  <div
                     key={entry.id}
                     className="flex items-center justify-between p-4 rounded-xl border border-border bg-background/50 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200 group"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="font-semibold text-base group-hover:text-primary transition-colors">{item.name}</p>
-                        <Badge variant="secondary" className="text-xs px-2 py-0.5">{entry.meal_category}</Badge>
+                        <p className="font-semibold text-base group-hover:text-primary transition-colors">
+                          {item.name}
+                        </p>
+                        <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                          {entry.meal_category}
+                        </Badge>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span>Servings: {entry.servings}</span>
@@ -518,9 +537,7 @@ const Nutrition = () => {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Add New Meal</DialogTitle>
-            <DialogDescription>
-              Enter the details of your meal to track your nutrition
-            </DialogDescription>
+            <DialogDescription>Enter the details of your meal to track your nutrition</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -607,6 +624,7 @@ const Nutrition = () => {
                   <SelectItem value="Breakfast">Breakfast</SelectItem>
                   <SelectItem value="Lunch">Lunch</SelectItem>
                   <SelectItem value="Dinner">Dinner</SelectItem>
+                  <SelectItem value="Dinner">Snack</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -616,9 +634,7 @@ const Nutrition = () => {
             <Button variant="outline" onClick={() => setAddMealDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddMeal}>
-              Add Meal
-            </Button>
+            <Button onClick={handleAddMeal}>Add Meal</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
