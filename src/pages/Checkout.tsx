@@ -69,6 +69,15 @@ const Checkout = () => {
       }
 
       // Create the order
+      // Convert time string to full timestamp
+      let deliveryTimestamp = null;
+      if (deliveryTime) {
+        const today = new Date();
+        const [hours, minutes] = deliveryTime.split(':');
+        today.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        deliveryTimestamp = today.toISOString();
+      }
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -77,7 +86,7 @@ const Checkout = () => {
           delivery_location: deliveryLocation,
           delivery_latitude: deliveryLat,
           delivery_longitude: deliveryLng,
-          delivery_time: deliveryTime,
+          delivery_time: deliveryTimestamp,
           special_notes: notes || null,
           status: 'pending',
           total_calories: totals.calories,
