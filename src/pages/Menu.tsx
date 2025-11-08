@@ -21,9 +21,10 @@ const Menu = () => {
   
   const diningHalls = [
     { id: "all", name: "All Dining Halls" },
-    { id: "commons", name: "The Commons" },
-    { id: "west", name: "West Campus Cafe" },
-    { id: "east", name: "East Side Eats" },
+    { id: "worcester", name: "Worcester" },
+    { id: "franklin", name: "Franklin" },
+    { id: "hampshire", name: "Hampshire" },
+    { id: "berkshire", name: "Berkshire" },
   ];
   
   const filters = ["Vegetarian", "Vegan", "Gluten-Free", "Grab & Go", "High Protein"];
