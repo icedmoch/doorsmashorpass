@@ -4,21 +4,20 @@ import { MessageSquare, UtensilsCrossed, Apple, LogOut, ClipboardList } from "lu
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userName");
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     toast({
       title: "Logged out",
       description: "You've been successfully logged out.",
     });
-    navigate("/");
+    navigate("/auth");
   };
   
   const isActive = (path: string) => location.pathname === path;

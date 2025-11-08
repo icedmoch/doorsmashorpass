@@ -30,6 +30,7 @@ const Auth = () => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state changed:', event, 'User ID:', session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -42,6 +43,7 @@ const Auth = () => {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Existing session found:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -68,7 +70,10 @@ const Auth = () => {
 
     setIsLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    // Sign out any existing session first
+    await supabase.auth.signOut();
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: loginPassword,
     });
@@ -80,6 +85,7 @@ const Auth = () => {
         variant: "destructive",
       });
     } else {
+      console.log('Logged in as user:', data.user?.id, data.user?.email);
       toast({
         title: "Success",
         description: "Logged in successfully",

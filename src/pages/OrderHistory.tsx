@@ -52,14 +52,31 @@ const OrderHistory = () => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    const initAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('OrderHistory - Current user:', user?.id, user?.email);
       setUser(user);
       if (user) {
         fetchOrders(user.id);
         fetchAvailableDeliveries(user.id);
         fetchMyDeliveries(user.id);
       }
+    };
+    
+    initAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('OrderHistory - Auth state changed:', event, 'User:', session?.user?.id);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchOrders(session.user.id);
+        fetchAvailableDeliveries(session.user.id);
+        fetchMyDeliveries(session.user.id);
+      }
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const fetchOrders = async (userId: string) => {
