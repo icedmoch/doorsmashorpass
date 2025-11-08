@@ -131,10 +131,10 @@ const Nutrition = () => {
         .from("food_items")
         .insert({
           name: mealForm.name,
-          calories: parseInt(mealForm.calories),
-          protein: parseFloat(mealForm.protein),
-          total_carb: parseFloat(mealForm.carbs),
-          total_fat: parseFloat(mealForm.fat),
+          calories: parseInt(mealForm.calories) || 0,
+          protein: parseFloat(mealForm.protein) || 0,
+          total_carb: parseFloat(mealForm.carbs) || 0,
+          total_fat: parseFloat(mealForm.fat) || 0,
           sodium: 0,
           dietary_fiber: 0,
           sugars: 0,
