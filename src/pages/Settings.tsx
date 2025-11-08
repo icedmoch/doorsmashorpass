@@ -74,6 +74,52 @@ const Settings = () => {
     }
   };
 
+  const handleHeightUnitChange = (newUnit: string) => {
+    if (formData.height) {
+      const currentValue = parseFloat(formData.height);
+      let convertedValue: number;
+      
+      if (formData.heightUnit === "cm" && newUnit === "inches") {
+        convertedValue = currentValue / 2.54;
+      } else if (formData.heightUnit === "inches" && newUnit === "cm") {
+        convertedValue = currentValue * 2.54;
+      } else {
+        convertedValue = currentValue;
+      }
+      
+      setFormData({ 
+        ...formData, 
+        heightUnit: newUnit,
+        height: convertedValue.toFixed(1)
+      });
+    } else {
+      setFormData({ ...formData, heightUnit: newUnit });
+    }
+  };
+
+  const handleWeightUnitChange = (newUnit: string) => {
+    if (formData.weight) {
+      const currentValue = parseFloat(formData.weight);
+      let convertedValue: number;
+      
+      if (formData.weightUnit === "kg" && newUnit === "lbs") {
+        convertedValue = currentValue / 0.453592;
+      } else if (formData.weightUnit === "lbs" && newUnit === "kg") {
+        convertedValue = currentValue * 0.453592;
+      } else {
+        convertedValue = currentValue;
+      }
+      
+      setFormData({ 
+        ...formData, 
+        weightUnit: newUnit,
+        weight: convertedValue.toFixed(1)
+      });
+    } else {
+      setFormData({ ...formData, weightUnit: newUnit });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -204,7 +250,7 @@ const Settings = () => {
               />
               <RadioGroup
                 value={formData.heightUnit}
-                onValueChange={(value) => setFormData({ ...formData, heightUnit: value })}
+                onValueChange={handleHeightUnitChange}
                 className="flex gap-2"
               >
                 <div className="flex items-center space-x-2">
@@ -235,7 +281,7 @@ const Settings = () => {
               />
               <RadioGroup
                 value={formData.weightUnit}
-                onValueChange={(value) => setFormData({ ...formData, weightUnit: value })}
+                onValueChange={handleWeightUnitChange}
                 className="flex gap-2"
               >
                 <div className="flex items-center space-x-2">
