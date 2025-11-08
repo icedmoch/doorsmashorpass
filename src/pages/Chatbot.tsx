@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Send, Mic, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 type Message = {
   id: string;
@@ -15,6 +17,7 @@ type Message = {
 };
 
 const Chatbot = () => {
+  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -25,6 +28,8 @@ const Chatbot = () => {
   ]);
   const [input, setInput] = useState("");
   const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const suggestions = [
     "Show me vegetarian grab-and-go",
@@ -61,6 +66,52 @@ const Chatbot = () => {
   const handleSuggestionClick = (suggestion: string) => {
     setInput(suggestion);
   };
+
+  const playAudio = async (text: string, messageId: string) => {
+    try {
+      if (playingMessageId === messageId && audioRef.current) {
+        audioRef.current.pause();
+        setPlayingMessageId(null);
+        return;
+      }
+
+      setPlayingMessageId(messageId);
+
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text, voice: 'alloy' }
+      });
+
+      if (error) throw error;
+
+      const audioBlob = new Blob(
+        [Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))],
+        { type: 'audio/mp3' }
+      );
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setPlayingMessageId(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      toast({
+        title: "Error",
+        description: "Failed to play audio. Make sure OPENAI_API_KEY is configured.",
+        variant: "destructive",
+      });
+      setPlayingMessageId(null);
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -86,18 +137,34 @@ const Chatbot = () => {
                         AI
                       </div>
                     )}
-                    <div
-                      className={cn(
-                        "max-w-[80%] rounded-2xl px-4 py-3 shadow-sm",
-                        message.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card border border-border"
+                    <div className="flex items-start gap-2">
+                      <div
+                        className={cn(
+                          "max-w-[80%] rounded-2xl px-4 py-3 shadow-sm",
+                          message.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-card border border-border"
+                        )}
+                      >
+                        <p className="text-sm leading-relaxed">{message.content}</p>
+                        <p className="text-xs opacity-60 mt-1">
+                          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      {message.role === "assistant" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 flex-shrink-0"
+                          onClick={() => playAudio(message.content, message.id)}
+                        >
+                          {playingMessageId === message.id ? (
+                            <VolumeX className="h-4 w-4" />
+                          ) : (
+                            <Volume2 className="h-4 w-4" />
+                          )}
+                        </Button>
                       )}
-                    >
-                      <p className="text-sm leading-relaxed">{message.content}</p>
-                      <p className="text-xs opacity-60 mt-1">
-                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
                     </div>
                     {message.role === "user" && (
                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground font-semibold text-sm">
