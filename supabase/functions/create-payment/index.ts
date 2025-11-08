@@ -48,10 +48,10 @@ serve(async (req) => {
 
     logStep("Request params", { orderId });
 
-    // Get order details (using user's auth context)
+    // Get order details (using admin client to bypass RLS after user auth)
     logStep("Fetching order", { orderId, userId: user.id });
     
-    const { data: order, error: orderError } = await supabaseClient
+    const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .select("*")
       .eq("id", orderId)
