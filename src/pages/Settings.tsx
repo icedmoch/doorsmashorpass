@@ -22,6 +22,8 @@ const Settings = () => {
     height: "",
     weight: "",
     activityLevel: "3",
+    dietaryPreferences: [] as string[],
+    goals: "",
   });
 
   useEffect(() => {
@@ -49,6 +51,8 @@ const Settings = () => {
           height: profile.height_inches?.toFixed(1) || "",
           weight: profile.weight_lbs?.toFixed(1) || "",
           activityLevel: profile.activity_level?.toString() || "3",
+          dietaryPreferences: profile.dietary_preferences || [],
+          goals: profile.goals || "",
         });
       }
     } catch (error: any) {
@@ -90,6 +94,8 @@ const Settings = () => {
           activity_level: activityLevel,
           bmr: bmr,
           tdee: tdee,
+          dietary_preferences: formData.dietaryPreferences,
+          goals: formData.goals,
         })
         .eq("id", user.id);
 
@@ -231,6 +237,62 @@ const Settings = () => {
                 </div>
               ))}
             </RadioGroup>
+          </div>
+
+          {/* Dietary Preferences */}
+          <div>
+            <Label>Dietary Preferences</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Select all that apply
+            </p>
+            <div className="space-y-2">
+              {[
+                { value: "vegetarian", label: "Vegetarian" },
+                { value: "vegan", label: "Vegan" },
+                { value: "gluten-free", label: "Gluten Free" },
+                { value: "keto", label: "Keto" },
+              ].map((pref) => (
+                <div key={pref.value} className="flex items-center space-x-2 p-3 border border-border rounded-md hover:bg-accent transition-colors">
+                  <input
+                    type="checkbox"
+                    id={`pref-${pref.value}`}
+                    checked={formData.dietaryPreferences.includes(pref.value)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData({
+                          ...formData,
+                          dietaryPreferences: [...formData.dietaryPreferences, pref.value]
+                        });
+                      } else {
+                        setFormData({
+                          ...formData,
+                          dietaryPreferences: formData.dietaryPreferences.filter(p => p !== pref.value)
+                        });
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-primary text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  />
+                  <Label htmlFor={`pref-${pref.value}`} className="flex-1 font-normal cursor-pointer">
+                    {pref.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Goals */}
+          <div>
+            <Label htmlFor="goals">Goals</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              What are your health and fitness goals?
+            </p>
+            <textarea
+              id="goals"
+              value={formData.goals}
+              onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
+              placeholder="E.g., Lose weight, build muscle, maintain current weight, improve energy..."
+              className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm resize-none"
+            />
           </div>
 
           <div className="flex gap-4">

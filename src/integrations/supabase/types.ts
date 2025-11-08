@@ -273,8 +273,10 @@ export type Database = {
           age: number | null
           bmr: number | null
           created_at: string | null
+          dietary_preferences: string[] | null
           email: string | null
           full_name: string | null
+          goals: string | null
           height_inches: number | null
           id: string
           onboarding_completed: boolean | null
@@ -287,8 +289,10 @@ export type Database = {
           age?: number | null
           bmr?: number | null
           created_at?: string | null
+          dietary_preferences?: string[] | null
           email?: string | null
           full_name?: string | null
+          goals?: string | null
           height_inches?: number | null
           id: string
           onboarding_completed?: boolean | null
@@ -301,8 +305,10 @@ export type Database = {
           age?: number | null
           bmr?: number | null
           created_at?: string | null
+          dietary_preferences?: string[] | null
           email?: string | null
           full_name?: string | null
+          goals?: string | null
           height_inches?: number | null
           id?: string
           onboarding_completed?: boolean | null
