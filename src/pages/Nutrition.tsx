@@ -126,27 +126,47 @@ const Nutrition = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      // Create food item first
-      const { data: foodItem, error: foodError } = await supabase
+      const currentDate = new Date().toISOString().split('T')[0];
+      
+      // Check if food item already exists
+      const { data: existingFoodItem } = await supabase
         .from("food_items")
-        .insert({
-          name: mealForm.name,
-          calories: parseInt(mealForm.calories) || 0,
-          protein: parseFloat(mealForm.protein) || 0,
-          total_carb: parseFloat(mealForm.carbs) || 0,
-          total_fat: parseFloat(mealForm.fat) || 0,
-          sodium: 0,
-          dietary_fiber: 0,
-          sugars: 0,
-          serving_size: "1 serving",
-          location: "Custom",
-          meal_type: mealForm.category,
-          date: new Date().toISOString().split('T')[0],
-        })
         .select()
-        .single();
+        .eq("name", mealForm.name)
+        .eq("location", "Custom")
+        .eq("date", currentDate)
+        .eq("meal_type", mealForm.category)
+        .maybeSingle();
 
-      if (foodError) throw foodError;
+      let foodItem;
+
+      if (existingFoodItem) {
+        // Use existing food item
+        foodItem = existingFoodItem;
+      } else {
+        // Create new food item
+        const { data: newFoodItem, error: foodError } = await supabase
+          .from("food_items")
+          .insert({
+            name: mealForm.name,
+            calories: parseInt(mealForm.calories) || 0,
+            protein: parseFloat(mealForm.protein) || 0,
+            total_carb: parseFloat(mealForm.carbs) || 0,
+            total_fat: parseFloat(mealForm.fat) || 0,
+            sodium: 0,
+            dietary_fiber: 0,
+            sugars: 0,
+            serving_size: "1 serving",
+            location: "Custom",
+            meal_type: mealForm.category,
+            date: currentDate,
+          })
+          .select()
+          .single();
+
+        if (foodError) throw foodError;
+        foodItem = newFoodItem;
+      }
 
       // Create meal entry
       const { error: entryError } = await supabase
