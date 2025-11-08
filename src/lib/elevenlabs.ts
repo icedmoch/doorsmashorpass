@@ -9,6 +9,8 @@ declare global {
 const ELEVENLABS_API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY || "sk_dd91e98a83e07d92d8230c59b192d9bfdbdb1fce3145547e";
 
 export const textToSpeech = async (text: string, voiceId: string = "JBFqnCBsd6RMkjVDRZzb") => {
+  console.log('TTS Request:', { text, voiceId, apiKey: ELEVENLABS_API_KEY ? 'Present' : 'Missing' });
+  
   const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: 'POST',
     headers: {
@@ -21,97 +23,83 @@ export const textToSpeech = async (text: string, voiceId: string = "JBFqnCBsd6RM
     })
   });
 
+  console.log('TTS Response:', response.status, response.statusText);
+  
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('TTS Error Details:', errorText);
     throw new Error(`TTS failed: ${response.status}`);
   }
 
   return response.arrayBuffer();
 };
 
-export const speechToTextWithElevenLabs = async (audioBlob: Blob) => {
-  const formData = new FormData();
-  formData.append('file', audioBlob, 'audio.webm');
-  formData.append('model_id', 'eleven_multilingual_v1');
-  
-  const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-    method: 'POST',
-    headers: {
-      'xi-api-key': ELEVENLABS_API_KEY
-    },
-    body: formData
-  });
 
-  if (!response.ok) {
-    throw new Error(`STT failed: ${response.status}`);
-  }
 
-  const result = await response.json();
-  return result.text;
-};
+let currentRecognition: any = null;
 
-export const startSpeechRecognition = (): Promise<string> => {
+export const startSpeechRecognition = (onInterimResult?: (text: string) => void): Promise<string> => {
   return new Promise<string>((resolve, reject) => {
+    if (currentRecognition) {
+      currentRecognition.stop();
+      currentRecognition = null;
+    }
+
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      reject(new Error('Speech recognition not supported in this browser'));
+      reject(new Error('Speech recognition not supported'));
       return;
     }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
+    currentRecognition = recognition;
     
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = 'en-US';
     recognition.maxAlternatives = 1;
     
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      resolve(transcript);
-    };
+    let finalResult = '';
     
-    recognition.onerror = (event: any) => {
-      reject(new Error(`Speech recognition error: ${event.error}`));
+    recognition.onresult = (event: any) => {
+      let interimTranscript = '';
+      
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalResult = transcript;
+        } else {
+          interimTranscript = transcript;
+        }
+      }
+      
+      if (onInterimResult) {
+        onInterimResult(interimTranscript || finalResult);
+      }
     };
     
     recognition.onend = () => {
-      // Recognition ended
+      currentRecognition = null;
+      resolve(finalResult || '');
     };
     
-    try {
-      recognition.start();
-    } catch (error) {
-      reject(new Error('Failed to start speech recognition'));
-    }
+    recognition.onerror = (event: any) => {
+      currentRecognition = null;
+      reject(new Error(`Speech error: ${event.error}`));
+    };
+    
+    recognition.start();
   });
 };
 
-export const recordAndTranscribe = (): Promise<string> => {
-  return new Promise<string>((resolve, reject) => {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(stream => {
-        const mediaRecorder = new MediaRecorder(stream);
-        const audioChunks: Blob[] = [];
-        
-        mediaRecorder.ondataavailable = (event) => {
-          audioChunks.push(event.data);
-        };
-        
-        mediaRecorder.onstop = async () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          stream.getTracks().forEach(track => track.stop());
-          
-          try {
-            const transcript = await speechToTextWithElevenLabs(audioBlob);
-            resolve(transcript);
-          } catch {
-            const transcript = await startSpeechRecognition();
-            resolve(transcript);
-          }
-        };
-        
-        mediaRecorder.start();
-        setTimeout(() => mediaRecorder.stop(), 5000);
-      })
-      .catch(reject);
-  });
+export const stopSpeechRecognition = () => {
+  if (currentRecognition) {
+    currentRecognition.stop();
+    currentRecognition = null;
+  }
+};
+
+export const recordAndTranscribe = (onInterimResult?: (text: string) => void): Promise<string> => {
+  console.log('Using Web Speech API only for faster response');
+  return startSpeechRecognition(onInterimResult);
 };

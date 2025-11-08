@@ -68,7 +68,9 @@ const Chatbot = () => {
 
   const handleVoiceRecording = async () => {
     try {
-      const transcription = await startRecording();
+      const transcription = await startRecording((interimText) => {
+        setInput(interimText);
+      });
       if (transcription) {
         setInput(transcription);
       }
@@ -83,24 +85,26 @@ const Chatbot = () => {
   };
 
   const playAudio = async (text: string, messageId: string) => {
-    try {
-      if (playingMessageId === messageId) {
-        stopPlaying();
-        setPlayingMessageId(null);
-        return;
-      }
+    if (playingMessageId === messageId) {
+      stopPlaying();
+      setPlayingMessageId(null);
+      return;
+    }
 
-      setPlayingMessageId(messageId);
+    stopPlaying();
+    setPlayingMessageId(messageId);
+    
+    try {
       await playText(text);
       setPlayingMessageId(null);
     } catch (error) {
       console.error('Error playing audio:', error);
+      setPlayingMessageId(null);
       toast({
         title: "Error",
         description: "Failed to play audio. Please check your ElevenLabs API key.",
         variant: "destructive",
       });
-      setPlayingMessageId(null);
     }
   };
   
@@ -210,7 +214,7 @@ const Chatbot = () => {
                     variant={isRecording ? "destructive" : "outline"}
                     size="icon"
                     className="flex-shrink-0"
-                    onClick={handleVoiceRecording}
+                    onClick={isRecording ? stopRecording : handleVoiceRecording}
                     disabled={isProcessing}
                   >
                     {isProcessing ? (
