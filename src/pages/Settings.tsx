@@ -19,9 +19,7 @@ const Settings = () => {
     age: "",
     sex: "Male",
     height: "",
-    heightUnit: "cm",
     weight: "",
-    weightUnit: "kg",
     activityLevel: "3",
   });
 
@@ -43,23 +41,12 @@ const Settings = () => {
       if (error) throw error;
 
       if (profile) {
-        // Convert stored values back to user's preferred units
-        const displayHeight = profile.height_unit === "inches"
-          ? (profile.height_cm / 2.54).toFixed(1)
-          : profile.height_cm?.toFixed(1) || "";
-
-        const displayWeight = profile.weight_unit === "lbs"
-          ? (profile.weight_kg / 0.453592).toFixed(1)
-          : profile.weight_kg?.toFixed(1) || "";
-
         setFormData({
           fullName: profile.full_name || "",
           age: profile.age?.toString() || "",
           sex: profile.sex || "Male",
-          height: displayHeight,
-          heightUnit: profile.height_unit || "cm",
-          weight: displayWeight,
-          weightUnit: profile.weight_unit || "kg",
+          height: profile.height_inches?.toFixed(1) || "",
+          weight: profile.weight_lbs?.toFixed(1) || "",
           activityLevel: profile.activity_level?.toString() || "3",
         });
       }
@@ -74,52 +61,6 @@ const Settings = () => {
     }
   };
 
-  const handleHeightUnitChange = (newUnit: string) => {
-    if (formData.height) {
-      const currentValue = parseFloat(formData.height);
-      let convertedValue: number;
-      
-      if (formData.heightUnit === "cm" && newUnit === "inches") {
-        convertedValue = currentValue / 2.54;
-      } else if (formData.heightUnit === "inches" && newUnit === "cm") {
-        convertedValue = currentValue * 2.54;
-      } else {
-        convertedValue = currentValue;
-      }
-      
-      setFormData({ 
-        ...formData, 
-        heightUnit: newUnit,
-        height: convertedValue.toFixed(1)
-      });
-    } else {
-      setFormData({ ...formData, heightUnit: newUnit });
-    }
-  };
-
-  const handleWeightUnitChange = (newUnit: string) => {
-    if (formData.weight) {
-      const currentValue = parseFloat(formData.weight);
-      let convertedValue: number;
-      
-      if (formData.weightUnit === "kg" && newUnit === "lbs") {
-        convertedValue = currentValue / 0.453592;
-      } else if (formData.weightUnit === "lbs" && newUnit === "kg") {
-        convertedValue = currentValue * 0.453592;
-      } else {
-        convertedValue = currentValue;
-      }
-      
-      setFormData({ 
-        ...formData, 
-        weightUnit: newUnit,
-        weight: convertedValue.toFixed(1)
-      });
-    } else {
-      setFormData({ ...formData, weightUnit: newUnit });
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -128,25 +69,14 @@ const Settings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      // Convert to cm and kg for storage
-      const heightInCm = formData.heightUnit === "inches"
-        ? parseFloat(formData.height) * 2.54
-        : parseFloat(formData.height);
-
-      const weightInKg = formData.weightUnit === "lbs"
-        ? parseFloat(formData.weight) * 0.453592
-        : parseFloat(formData.weight);
-
       const { error } = await supabase
         .from("profiles")
         .update({
           full_name: formData.fullName,
           age: parseInt(formData.age),
           sex: formData.sex,
-          height_cm: heightInCm,
-          height_unit: formData.heightUnit,
-          weight_kg: weightInKg,
-          weight_unit: formData.weightUnit,
+          height_inches: parseFloat(formData.height),
+          weight_lbs: parseFloat(formData.weight),
           activity_level: parseInt(formData.activityLevel),
         })
         .eq("id", user.id);
@@ -236,64 +166,30 @@ const Settings = () => {
 
           {/* Height */}
           <div>
-            <Label htmlFor="height">Height</Label>
-            <div className="flex gap-2">
-              <Input
-                id="height"
-                type="number"
-                required
-                value={formData.height}
-                onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                placeholder="Enter height"
-                step="0.1"
-                className="flex-1"
-              />
-              <RadioGroup
-                value={formData.heightUnit}
-                onValueChange={handleHeightUnitChange}
-                className="flex gap-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="cm" id="cm" />
-                  <Label htmlFor="cm" className="font-normal">cm</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="inches" id="inches" />
-                  <Label htmlFor="inches" className="font-normal">inches</Label>
-                </div>
-              </RadioGroup>
-            </div>
+            <Label htmlFor="height">Height (inches)</Label>
+            <Input
+              id="height"
+              type="number"
+              required
+              value={formData.height}
+              onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+              placeholder="Enter height in inches"
+              step="0.1"
+            />
           </div>
 
           {/* Weight */}
           <div>
-            <Label htmlFor="weight">Weight</Label>
-            <div className="flex gap-2">
-              <Input
-                id="weight"
-                type="number"
-                required
-                value={formData.weight}
-                onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                placeholder="Enter weight"
-                step="0.1"
-                className="flex-1"
-              />
-              <RadioGroup
-                value={formData.weightUnit}
-                onValueChange={handleWeightUnitChange}
-                className="flex gap-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="kg" id="kg" />
-                  <Label htmlFor="kg" className="font-normal">kg</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="lbs" id="lbs" />
-                  <Label htmlFor="lbs" className="font-normal">lbs</Label>
-                </div>
-              </RadioGroup>
-            </div>
+            <Label htmlFor="weight">Weight (lbs)</Label>
+            <Input
+              id="weight"
+              type="number"
+              required
+              value={formData.weight}
+              onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+              placeholder="Enter weight in lbs"
+              step="0.1"
+            />
           </div>
 
           {/* Activity Level */}
