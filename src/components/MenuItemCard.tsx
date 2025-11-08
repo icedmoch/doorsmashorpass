@@ -27,54 +27,57 @@ const MenuItemCard = ({
 }: MenuItemCardProps) => {
   return (
     <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 cursor-pointer border-border/50 bg-card/50 backdrop-blur-sm">
-      <div className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-xl">{name}</h3>
-          <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
-            {category}
-          </Badge>
+      <div className="p-5 flex items-center gap-6">
+        <div className="flex-1 space-y-3">
+          <div className="flex items-center gap-3">
+            <h3 className="font-semibold text-xl">{name}</h3>
+            <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
+              {category}
+            </Badge>
+            {!available && (
+              <Badge variant="secondary" className="ml-auto">Sold Out</Badge>
+            )}
+          </div>
+          
+          {allergens.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {allergens.map((allergen, index) => (
+                <Badge key={index} variant="outline" className="text-xs">
+                  {allergen}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
         
-        {!available && (
-          <Badge variant="secondary" className="w-fit">Sold Out</Badge>
-        )}
-        
-        <div className="grid grid-cols-4 gap-3 py-3 border-y border-border/50">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-primary">{calories}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Calories</div>
+        <div className="flex items-center gap-6">
+          <div className="flex gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">{calories}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Calories</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-foreground">{protein}g</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Protein</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-foreground">{carbs}g</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Carbs</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-foreground">{fat}g</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Fat</div>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-foreground">{protein}g</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Protein</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-foreground">{carbs}g</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Carbs</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-foreground">{fat}g</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Fat</div>
-          </div>
+          
+          <Button 
+            className="bg-gradient-to-r from-primary to-primary/90 hover:shadow-md transition-all whitespace-nowrap"
+            disabled={!available}
+          >
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Add to Cart
+          </Button>
         </div>
-        
-        {allergens.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {allergens.map((allergen, index) => (
-              <Badge key={index} variant="outline" className="text-xs">
-                {allergen}
-              </Badge>
-            ))}
-          </div>
-        )}
-        
-        <Button 
-          className="w-full bg-gradient-to-r from-primary to-primary/90 hover:shadow-md transition-all"
-          disabled={!available}
-        >
-          <ShoppingCart className="h-4 w-4 mr-2" />
-          Add to Cart
-        </Button>
       </div>
     </Card>
   );
