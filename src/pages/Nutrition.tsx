@@ -74,7 +74,7 @@ const Nutrition = () => {
     carbs: "",
     fat: "",
     servings: "1",
-    category: "lunch",
+    category: "Lunch",
   });
 
   useEffect(() => {
@@ -194,7 +194,7 @@ const Nutrition = () => {
         carbs: "",
         fat: "",
         servings: "1",
-        category: "lunch",
+        category: "Lunch",
       });
       fetchData();
     } catch (error: any) {
@@ -604,10 +604,9 @@ const Nutrition = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="breakfast">Breakfast</SelectItem>
-                  <SelectItem value="lunch">Lunch</SelectItem>
-                  <SelectItem value="dinner">Dinner</SelectItem>
-                  <SelectItem value="snack">Snack</SelectItem>
+                  <SelectItem value="Breakfast">Breakfast</SelectItem>
+                  <SelectItem value="Lunch">Lunch</SelectItem>
+                  <SelectItem value="Dinner">Dinner</SelectItem>
                 </SelectContent>
               </Select>
             </div>
