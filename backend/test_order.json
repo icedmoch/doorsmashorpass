@@ -1,0 +1,16 @@
+{
+  "user_id": "10fccccb-4f6c-4a8f-954f-1d88aafeaa37",
+  "delivery_location": "Lewis Hall, 340, Thatcher Road, Amherst, Hampshire County, Massachusetts, 01003, United States",
+  "delivery_time": "2025-11-08T12:00:00",
+  "special_instructions": "Please leave at the front desk. No onions.",
+  "items": [
+    {
+      "food_item_id": 1,
+      "quantity": 1
+    },
+    {
+      "food_item_id": 2,
+      "quantity": 2
+    }
+  ]
+}
