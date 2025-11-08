@@ -163,6 +163,7 @@ export type Database = {
       orders: {
         Row: {
           created_at: string | null
+          deliverer_id: string | null
           delivery_latitude: number | null
           delivery_location: string
           delivery_longitude: number | null
@@ -181,6 +182,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          deliverer_id?: string | null
           delivery_latitude?: number | null
           delivery_location: string
           delivery_longitude?: number | null
@@ -199,6 +201,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          deliverer_id?: string | null
           delivery_latitude?: number | null
           delivery_location?: string
           delivery_longitude?: number | null
@@ -216,6 +219,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_deliverer_id_fkey"
+            columns: ["deliverer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_user_id_fkey"
             columns: ["user_id"]
