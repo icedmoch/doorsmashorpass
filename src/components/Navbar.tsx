@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import minutemanLogo from "@/assets/minuteman_logo.png";
 
 const Navbar = () => {
   const location = useLocation();
@@ -98,7 +99,7 @@ const Navbar = () => {
               <span className="hidden lg:inline">Logout</span>
             </Button>
             <Avatar className="h-9 w-9 cursor-pointer ring-2 ring-primary/20 hover:ring-primary/40 transition-all duration-200" onClick={() => navigate("/student/settings")}>
-              <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student" alt="Student" />
+              <AvatarImage src={minutemanLogo} alt="User" />
               <AvatarFallback className="bg-primary text-primary-foreground">ST</AvatarFallback>
             </Avatar>
           </div>
