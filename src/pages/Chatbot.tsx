@@ -1,13 +1,13 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Send, Mic, Volume2, VolumeX } from "lucide-react";
+import { Send, Mic, Volume2, VolumeX, MicOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { useSpeech } from "@/hooks/useSpeech";
 
 type Message = {
   id: string;
@@ -18,6 +18,7 @@ type Message = {
 
 const Chatbot = () => {
   const { toast } = useToast();
+  const { isRecording, isPlaying, isProcessing, startRecording, stopRecording, playText, stopPlaying } = useSpeech();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -27,9 +28,7 @@ const Chatbot = () => {
     },
   ]);
   const [input, setInput] = useState("");
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const suggestions = [
     "Show me vegetarian grab-and-go",
@@ -67,49 +66,45 @@ const Chatbot = () => {
     setInput(suggestion);
   };
 
-  const playAudio = async (text: string, messageId: string) => {
+  const handleVoiceRecording = async () => {
     try {
-      if (playingMessageId === messageId && audioRef.current) {
-        audioRef.current.pause();
-        setPlayingMessageId(null);
-        return;
-      }
-
-      setPlayingMessageId(messageId);
-
-      const { data, error } = await supabase.functions.invoke('text-to-speech', {
-        body: { text, voice: 'alloy' }
+      const transcription = await startRecording((interimText) => {
+        setInput(interimText);
       });
-
-      if (error) throw error;
-
-      const audioBlob = new Blob(
-        [Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))],
-        { type: 'audio/mp3' }
-      );
-      const audioUrl = URL.createObjectURL(audioBlob);
-
-      if (audioRef.current) {
-        audioRef.current.pause();
+      if (transcription) {
+        setInput(transcription);
       }
-
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      audio.onended = () => {
-        setPlayingMessageId(null);
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      await audio.play();
     } catch (error) {
-      console.error('Error playing audio:', error);
+      console.error('Voice recording error:', error);
       toast({
         title: "Error",
-        description: "Failed to play audio. Make sure OPENAI_API_KEY is configured.",
+        description: "Failed to access microphone or process speech. Please ensure microphone permissions are granted.",
         variant: "destructive",
       });
+    }
+  };
+
+  const playAudio = async (text: string, messageId: string) => {
+    if (playingMessageId === messageId) {
+      stopPlaying();
       setPlayingMessageId(null);
+      return;
+    }
+
+    stopPlaying();
+    setPlayingMessageId(messageId);
+    
+    try {
+      await playText(text);
+      setPlayingMessageId(null);
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      setPlayingMessageId(null);
+      toast({
+        title: "Error",
+        description: "Failed to play audio. Please check your ElevenLabs API key.",
+        variant: "destructive",
+      });
     }
   };
   
@@ -193,14 +188,20 @@ const Chatbot = () => {
               
               {/* Input Area */}
               <div className="border-t border-border p-4 bg-muted/30">
+                {isRecording && (
+                  <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                    Listening... Speak now
+                  </div>
+                )}
                 <div className="flex gap-2 items-center">
                   <Button
-                    variant={isVoiceMode ? "default" : "outline"}
+                    variant="outline"
                     size="icon"
-                    onClick={() => setIsVoiceMode(!isVoiceMode)}
                     className="flex-shrink-0"
+                    disabled
                   >
-                    {isVoiceMode ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                    <Volume2 className="h-4 w-4" />
                   </Button>
                   <Input
                     value={input}
@@ -210,11 +211,19 @@ const Chatbot = () => {
                     className="flex-1 bg-background"
                   />
                   <Button
-                    variant="outline"
+                    variant={isRecording ? "destructive" : "outline"}
                     size="icon"
                     className="flex-shrink-0"
+                    onClick={isRecording ? stopRecording : handleVoiceRecording}
+                    disabled={isProcessing}
                   >
-                    <Mic className="h-4 w-4" />
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : isRecording ? (
+                      <MicOff className="h-4 w-4" />
+                    ) : (
+                      <Mic className="h-4 w-4" />
+                    )}
                   </Button>
                   <Button
                     onClick={handleSend}
@@ -258,6 +267,13 @@ const Chatbot = () => {
                 </Button>
                 <Button variant="outline" className="w-full justify-start">
                   View meal history
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => playAudio("Testing ElevenLabs text to speech functionality.", "test")}
+                >
+                  Test TTS
                 </Button>
               </div>
             </Card>
