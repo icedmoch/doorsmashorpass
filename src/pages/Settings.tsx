@@ -185,48 +185,6 @@ const Settings = () => {
         <h1 className="text-3xl font-bold text-foreground mb-2">Profile Settings</h1>
         <p className="text-muted-foreground mb-8">Update your personal information</p>
 
-        {/* Stripe Connect Card */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Delivery Payments
-            </CardTitle>
-            <CardDescription>
-              Connect your Stripe account to receive payments for deliveries
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {stripeAccountId ? (
-              <div className="flex items-center gap-3">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <div className="flex-1">
-                  <p className="font-medium">Stripe Connected</p>
-                  <p className="text-sm text-muted-foreground">
-                    You can now claim deliveries and receive payments
-                  </p>
-                </div>
-                <Badge variant="secondary">Active</Badge>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  To earn money from deliveries, you need to connect a Stripe account. 
-                  You'll receive 98% of each $10 delivery fee ($9.80).
-                </p>
-                <Button 
-                  onClick={handleConnectStripe} 
-                  disabled={isConnectingStripe}
-                  className="w-full sm:w-auto"
-                >
-                  {isConnectingStripe && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Connect Stripe Account
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         <form onSubmit={handleSubmit} className="space-y-6 bg-card border border-border rounded-lg p-6">
           {/* Full Name */}
