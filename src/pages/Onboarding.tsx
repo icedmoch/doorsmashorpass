@@ -21,6 +21,10 @@ const Onboarding = () => {
     activityLevel: "3",
     dietaryPreferences: [] as string[],
     goals: "",
+    goalCalories: "",
+    goalProtein: "",
+    goalCarbs: "",
+    goalFat: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,6 +56,10 @@ const Onboarding = () => {
           tdee: tdee,
           dietary_preferences: formData.dietaryPreferences,
           goals: formData.goals,
+          goal_calories: formData.goalCalories ? parseInt(formData.goalCalories) : null,
+          goal_protein: formData.goalProtein ? parseFloat(formData.goalProtein) : null,
+          goal_carbs: formData.goalCarbs ? parseFloat(formData.goalCarbs) : null,
+          goal_fat: formData.goalFat ? parseFloat(formData.goalFat) : null,
           onboarding_completed: true,
         })
         .eq("id", user.id);
@@ -188,9 +196,12 @@ const Onboarding = () => {
             <div className="space-y-2">
               {[
                 { value: "vegetarian", label: "Vegetarian" },
-                { value: "vegan", label: "Vegan" },
-                { value: "gluten-free", label: "Gluten Free" },
-                { value: "keto", label: "Keto" },
+                { value: "plant-based", label: "Plant Based" },
+                { value: "local", label: "Local" },
+                { value: "whole-grain", label: "Whole Grain" },
+                { value: "halal", label: "Halal" },
+                { value: "antibiotic-free", label: "Antibiotic Free" },
+                { value: "sustainable", label: "Sustainable" },
               ].map((pref) => (
                 <div key={pref.value} className="flex items-center space-x-2 p-3 border border-border rounded-md hover:bg-accent transition-colors">
                   <input
@@ -233,6 +244,63 @@ const Onboarding = () => {
               placeholder="E.g., Lose weight, build muscle, maintain current weight, improve energy..."
               className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm resize-none"
             />
+          </div>
+
+          {/* Numeric Goals */}
+          <div>
+            <Label>Daily Nutrition Goals</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Set your target intake (optional)
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="goalCalories" className="text-sm font-normal">Calories</Label>
+                <Input
+                  id="goalCalories"
+                  type="number"
+                  value={formData.goalCalories}
+                  onChange={(e) => setFormData({ ...formData, goalCalories: e.target.value })}
+                  placeholder="e.g., 2000"
+                  min="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="goalProtein" className="text-sm font-normal">Protein (g)</Label>
+                <Input
+                  id="goalProtein"
+                  type="number"
+                  value={formData.goalProtein}
+                  onChange={(e) => setFormData({ ...formData, goalProtein: e.target.value })}
+                  placeholder="e.g., 150"
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="goalCarbs" className="text-sm font-normal">Carbs (g)</Label>
+                <Input
+                  id="goalCarbs"
+                  type="number"
+                  value={formData.goalCarbs}
+                  onChange={(e) => setFormData({ ...formData, goalCarbs: e.target.value })}
+                  placeholder="e.g., 250"
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="goalFat" className="text-sm font-normal">Fat (g)</Label>
+                <Input
+                  id="goalFat"
+                  type="number"
+                  value={formData.goalFat}
+                  onChange={(e) => setFormData({ ...formData, goalFat: e.target.value })}
+                  placeholder="e.g., 70"
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+            </div>
           </div>
 
           <Button type="submit" className="w-full" size="lg" disabled={loading}>
