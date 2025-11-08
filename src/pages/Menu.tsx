@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Search, ShoppingCart, SlidersHorizontal } from "lucide-react";
+import { Search, ShoppingCart, SlidersHorizontal, Minus, Plus, Trash2 } from "lucide-react";
+import { CartProvider, useCart } from "@/contexts/CartContext";
 import {
   Select,
   SelectContent,
@@ -14,7 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const Menu = () => {
+const MenuContent = () => {
+  const { items: cartItems, removeItem, updateQuantity, totals, clearCart } = useCart();
   const [selectedHall, setSelectedHall] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -178,30 +180,98 @@ const Menu = () => {
           {/* Cart Sidebar */}
           <div className="hidden lg:block">
             <Card className="p-6 sticky top-24 shadow-md">
-              <div className="flex items-center gap-2 mb-4">
-                <ShoppingCart className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-lg">Your Cart</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold text-lg">Your Cart</h3>
+                </div>
+                {cartItems.length > 0 && (
+                  <Badge variant="secondary">{cartItems.length}</Badge>
+                )}
               </div>
               
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="text-sm">Your cart is empty</p>
-                <p className="text-xs mt-2">Add items to get started!</p>
-              </div>
+              {cartItems.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">Your cart is empty</p>
+                  <p className="text-xs mt-2">Add items to get started!</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {cartItems.map(item => (
+                    <div key={item.id} className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.calories} cal • {item.protein}g protein
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="text-sm font-medium w-6 text-center">
+                          {item.quantity}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => removeItem(item.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               
-              <div className="space-y-3 pt-4 border-t border-border">
+              <div className="space-y-3 pt-4 mt-4 border-t border-border">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total Calories</span>
-                  <span className="font-semibold">0 cal</span>
+                  <span className="font-semibold">{Math.round(totals.calories)} cal</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total Protein</span>
-                  <span className="font-semibold">0g</span>
+                  <span className="font-semibold">{Math.round(totals.protein)}g</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total Carbs</span>
+                  <span className="font-semibold">{Math.round(totals.carbs)}g</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total Fat</span>
+                  <span className="font-semibold">{Math.round(totals.fat)}g</span>
                 </div>
               </div>
               
-              <Button className="w-full mt-4 bg-gradient-to-r from-primary to-primary/90" disabled>
-                Checkout
-              </Button>
+              {cartItems.length > 0 && (
+                <div className="space-y-2 mt-4">
+                  <Button className="w-full bg-gradient-to-r from-primary to-primary/90">
+                    Checkout
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={clearCart}
+                  >
+                    Clear Cart
+                  </Button>
+                </div>
+              )}
             </Card>
           </div>
         </div>
@@ -214,6 +284,14 @@ const Menu = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const Menu = () => {
+  return (
+    <CartProvider>
+      <MenuContent />
+    </CartProvider>
   );
 };
 
