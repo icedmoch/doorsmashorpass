@@ -1,10 +1,25 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, UtensilsCrossed, Apple } from "lucide-react";
+import { MessageSquare, UtensilsCrossed, Apple, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "./ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleLogout = () => {
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userName");
+    toast({
+      title: "Logged out",
+      description: "You've been successfully logged out.",
+    });
+    navigate("/");
+  };
   
   const isActive = (path: string) => location.pathname === path;
   
@@ -62,11 +77,17 @@ const Navbar = () => {
             </Link>
           </div>
           
-          {/* User Profile */}
-          <Avatar className="h-9 w-9 cursor-pointer ring-2 ring-primary/20 hover:ring-primary/40 transition-all duration-200">
-            <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student" alt="Student" />
-            <AvatarFallback className="bg-primary text-primary-foreground">ST</AvatarFallback>
-          </Avatar>
+          {/* User Profile & Logout */}
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              <span className="hidden lg:inline">Logout</span>
+            </Button>
+            <Avatar className="h-9 w-9 cursor-pointer ring-2 ring-primary/20 hover:ring-primary/40 transition-all duration-200">
+              <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student" alt="Student" />
+              <AvatarFallback className="bg-primary text-primary-foreground">ST</AvatarFallback>
+            </Avatar>
+          </div>
         </div>
         
         {/* Mobile Navigation */}

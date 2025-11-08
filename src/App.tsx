@@ -2,11 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Landing from "./pages/Landing";
 import Chatbot from "./pages/Chatbot";
 import Menu from "./pages/Menu";
 import Nutrition from "./pages/Nutrition";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -17,10 +19,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/student/nutrition" replace />} />
-          <Route path="/student/nutrition" element={<Nutrition />} />
-          <Route path="/student/menu" element={<Menu />} />
-          <Route path="/student/chatbot" element={<Chatbot />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="/student/nutrition" element={<ProtectedRoute><Nutrition /></ProtectedRoute>} />
+          <Route path="/student/menu" element={<ProtectedRoute><Menu /></ProtectedRoute>} />
+          <Route path="/student/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
