@@ -32,7 +32,6 @@ const Menu = () => {
     {
       id: "1",
       name: "Grilled Chicken Bowl",
-      image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop",
       calories: 520,
       protein: 45,
       carbs: 42,
@@ -44,7 +43,6 @@ const Menu = () => {
     {
       id: "2",
       name: "Mediterranean Wrap",
-      image: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=400&h=300&fit=crop",
       calories: 380,
       protein: 22,
       carbs: 48,
@@ -56,7 +54,6 @@ const Menu = () => {
     {
       id: "3",
       name: "Quinoa Power Salad",
-      image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop",
       calories: 340,
       protein: 14,
       carbs: 52,
@@ -68,7 +65,6 @@ const Menu = () => {
     {
       id: "4",
       name: "BBQ Pulled Pork Sandwich",
-      image: "https://images.unsplash.com/photo-1553909489-cd47e0907980?w=400&h=300&fit=crop",
       calories: 680,
       protein: 38,
       carbs: 62,
@@ -80,7 +76,6 @@ const Menu = () => {
     {
       id: "5",
       name: "Veggie Stir Fry",
-      image: "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&h=300&fit=crop",
       calories: 280,
       protein: 12,
       carbs: 38,
@@ -92,7 +87,6 @@ const Menu = () => {
     {
       id: "6",
       name: "Protein Smoothie Bowl",
-      image: "https://images.unsplash.com/photo-1590301157890-4810ed352733?w=400&h=300&fit=crop",
       calories: 420,
       protein: 32,
       carbs: 54,

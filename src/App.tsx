@@ -17,10 +17,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/student/chatbot" replace />} />
-          <Route path="/student/chatbot" element={<Chatbot />} />
-          <Route path="/student/menu" element={<Menu />} />
+          <Route path="/" element={<Navigate to="/student/nutrition" replace />} />
           <Route path="/student/nutrition" element={<Nutrition />} />
+          <Route path="/student/menu" element={<Menu />} />
+          <Route path="/student/chatbot" element={<Chatbot />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

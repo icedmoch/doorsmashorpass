@@ -6,7 +6,6 @@ import { ShoppingCart } from "lucide-react";
 type MenuItemCardProps = {
   id: string;
   name: string;
-  image: string;
   calories: number;
   protein: number;
   carbs: number;
@@ -18,7 +17,6 @@ type MenuItemCardProps = {
 
 const MenuItemCard = ({ 
   name, 
-  image, 
   calories, 
   protein, 
   carbs, 
@@ -28,34 +26,36 @@ const MenuItemCard = ({
   category 
 }: MenuItemCardProps) => {
   return (
-    <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 cursor-pointer">
-      <div className="relative overflow-hidden aspect-video bg-muted">
-        <img 
-          src={image} 
-          alt={name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        {!available && (
-          <div className="absolute inset-0 bg-foreground/60 flex items-center justify-center">
-            <Badge variant="secondary" className="text-sm">Sold Out</Badge>
-          </div>
-        )}
-        <Badge className="absolute top-3 right-3 bg-card/90 text-foreground border-border">
-          {category}
-        </Badge>
-      </div>
-      
-      <div className="p-4 space-y-3">
-        <h3 className="font-semibold text-lg line-clamp-1">{name}</h3>
+    <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 cursor-pointer border-border/50 bg-card/50 backdrop-blur-sm">
+      <div className="p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-xl">{name}</h3>
+          <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
+            {category}
+          </Badge>
+        </div>
         
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <span className="font-medium text-foreground">{calories}</span> cal
+        {!available && (
+          <Badge variant="secondary" className="w-fit">Sold Out</Badge>
+        )}
+        
+        <div className="grid grid-cols-4 gap-3 py-3 border-y border-border/50">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-primary">{calories}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Calories</div>
           </div>
-          <div className="h-1 w-1 rounded-full bg-border"></div>
-          <div>P: {protein}g</div>
-          <div>C: {carbs}g</div>
-          <div>F: {fat}g</div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-foreground">{protein}g</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Protein</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-foreground">{carbs}g</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Carbs</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-foreground">{fat}g</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Fat</div>
+          </div>
         </div>
         
         {allergens.length > 0 && (

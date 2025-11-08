@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, UtensilsCrossed, TrendingUp } from "lucide-react";
+import { MessageSquare, UtensilsCrossed, Apple } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Navbar = () => {
@@ -13,7 +13,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/student/chatbot" className="flex items-center gap-2 group">
+          <Link to="/student/nutrition" className="flex items-center gap-2 group">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-md transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg">
               <UtensilsCrossed className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -25,16 +25,16 @@ const Navbar = () => {
           {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-1">
             <Link
-              to="/student/chatbot"
+              to="/student/nutrition"
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200",
-                isActive("/student/chatbot")
+                isActive("/student/nutrition")
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <MessageSquare className="h-4 w-4" />
-              <span>Chat</span>
+              <Apple className="h-4 w-4" />
+              <span>Nutrition</span>
             </Link>
             <Link
               to="/student/menu"
@@ -49,16 +49,16 @@ const Navbar = () => {
               <span>Menu</span>
             </Link>
             <Link
-              to="/student/nutrition"
+              to="/student/chatbot"
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200",
-                isActive("/student/nutrition")
+                isActive("/student/chatbot")
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <TrendingUp className="h-4 w-4" />
-              <span>Nutrition</span>
+              <MessageSquare className="h-4 w-4" />
+              <span>Chat</span>
             </Link>
           </div>
           
@@ -72,16 +72,16 @@ const Navbar = () => {
         {/* Mobile Navigation */}
         <div className="flex md:hidden justify-around border-t border-border py-2">
           <Link
-            to="/student/chatbot"
+            to="/student/nutrition"
             className={cn(
               "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
-              isActive("/student/chatbot")
+              isActive("/student/nutrition")
                 ? "text-primary"
                 : "text-muted-foreground"
             )}
           >
-            <MessageSquare className="h-5 w-5" />
-            <span className="text-xs font-medium">Chat</span>
+            <Apple className="h-5 w-5" />
+            <span className="text-xs font-medium">Nutrition</span>
           </Link>
           <Link
             to="/student/menu"
@@ -96,16 +96,16 @@ const Navbar = () => {
             <span className="text-xs font-medium">Menu</span>
           </Link>
           <Link
-            to="/student/nutrition"
+            to="/student/chatbot"
             className={cn(
               "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
-              isActive("/student/nutrition")
+              isActive("/student/chatbot")
                 ? "text-primary"
                 : "text-muted-foreground"
             )}
           >
-            <TrendingUp className="h-5 w-5" />
-            <span className="text-xs font-medium">Nutrition</span>
+            <MessageSquare className="h-5 w-5" />
+            <span className="text-xs font-medium">Chat</span>
           </Link>
         </div>
       </div>
