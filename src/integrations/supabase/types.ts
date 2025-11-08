@@ -276,6 +276,10 @@ export type Database = {
           dietary_preferences: string[] | null
           email: string | null
           full_name: string | null
+          goal_calories: number | null
+          goal_carbs: number | null
+          goal_fat: number | null
+          goal_protein: number | null
           goals: string | null
           height_inches: number | null
           id: string
@@ -292,6 +296,10 @@ export type Database = {
           dietary_preferences?: string[] | null
           email?: string | null
           full_name?: string | null
+          goal_calories?: number | null
+          goal_carbs?: number | null
+          goal_fat?: number | null
+          goal_protein?: number | null
           goals?: string | null
           height_inches?: number | null
           id: string
@@ -308,6 +316,10 @@ export type Database = {
           dietary_preferences?: string[] | null
           email?: string | null
           full_name?: string | null
+          goal_calories?: number | null
+          goal_carbs?: number | null
+          goal_fat?: number | null
+          goal_protein?: number | null
           goals?: string | null
           height_inches?: number | null
           id?: string
