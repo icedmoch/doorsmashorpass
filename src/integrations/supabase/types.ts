@@ -156,9 +156,11 @@ export type Database = {
       }
       orders: {
         Row: {
+          claimed_at: string | null
           created_at: string
           delivery_location: string | null
           delivery_option: string
+          delivery_person_id: number | null
           delivery_time: string
           id: number
           special_notes: string | null
@@ -170,9 +172,11 @@ export type Database = {
           user_id: number
         }
         Insert: {
+          claimed_at?: string | null
           created_at?: string
           delivery_location?: string | null
           delivery_option: string
+          delivery_person_id?: number | null
           delivery_time: string
           id?: never
           special_notes?: string | null
@@ -184,9 +188,11 @@ export type Database = {
           user_id: number
         }
         Update: {
+          claimed_at?: string | null
           created_at?: string
           delivery_location?: string | null
           delivery_option?: string
+          delivery_person_id?: number | null
           delivery_time?: string
           id?: never
           special_notes?: string | null
@@ -198,6 +204,13 @@ export type Database = {
           user_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_delivery_person_id_fkey"
+            columns: ["delivery_person_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_user_id_fkey"
             columns: ["user_id"]
