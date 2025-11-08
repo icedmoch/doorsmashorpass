@@ -142,6 +142,63 @@ export type Database = {
           },
         ]
       }
+      meal_entry_items: {
+        Row: {
+          calories: number
+          carbs: number
+          created_at: string | null
+          dining_hall: string | null
+          fat: number
+          food_item_name: string
+          id: string
+          meal_entry_id: number
+          order_item_id: string | null
+          protein: number
+          quantity: number
+        }
+        Insert: {
+          calories?: number
+          carbs?: number
+          created_at?: string | null
+          dining_hall?: string | null
+          fat?: number
+          food_item_name: string
+          id?: string
+          meal_entry_id: number
+          order_item_id?: string | null
+          protein?: number
+          quantity?: number
+        }
+        Update: {
+          calories?: number
+          carbs?: number
+          created_at?: string | null
+          dining_hall?: string | null
+          fat?: number
+          food_item_name?: string
+          id?: string
+          meal_entry_id?: number
+          order_item_id?: string | null
+          protein?: number
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_entry_items_meal_entry_id_fkey"
+            columns: ["meal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "meal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meal_entry_items_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           calories: number | null

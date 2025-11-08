@@ -101,7 +101,7 @@ export function MealTrackingDialog({
       }
 
       // Add to meal entries
-      const { error: entryError } = await supabase
+      const { data: mealEntry, error: entryError } = await supabase
         .from("meal_entries")
         .insert({
           profile_id: user.id,
@@ -109,9 +109,30 @@ export function MealTrackingDialog({
           meal_category: "Lunch",
           entry_date: new Date().toISOString().split('T')[0],
           servings: servingMultiplier,
-        });
+        })
+        .select()
+        .single();
 
       if (entryError) throw entryError;
+
+      // Add individual items to meal_entry_items table
+      const mealEntryItems = orderItems.map(item => ({
+        meal_entry_id: mealEntry.id,
+        order_item_id: item.id,
+        food_item_name: item.food_item_name,
+        quantity: item.quantity,
+        calories: item.calories,
+        protein: item.protein,
+        carbs: item.carbs,
+        fat: item.fat,
+        dining_hall: item.dining_hall,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("meal_entry_items")
+        .insert(mealEntryItems);
+
+      if (itemsError) throw itemsError;
 
       toast({
         title: "Meal added to nutrition tracking!",

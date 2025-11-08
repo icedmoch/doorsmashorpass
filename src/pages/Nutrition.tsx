@@ -46,6 +46,18 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
+type MealEntryItem = {
+  id: string;
+  meal_entry_id: number;
+  food_item_name: string;
+  quantity: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  dining_hall?: string | null;
+};
+
 type MealEntry = {
   id: number;
   profile_id: string;
@@ -63,6 +75,7 @@ type MealEntry = {
     serving_size: string;
     location?: string;
   };
+  meal_entry_items?: MealEntryItem[];
 };
 
 const Nutrition = () => {
@@ -115,7 +128,8 @@ const Nutrition = () => {
         .select(
           `
           *,
-          food_item:food_items(*)
+          food_item:food_items(*),
+          meal_entry_items(*)
         `,
         )
         .eq("profile_id", user.id)
@@ -544,7 +558,29 @@ const Nutrition = () => {
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <div className="px-4 pb-4 pt-2 border-t border-border/50">
-                          <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Nutritional Breakdown</h4>
+                          {/* Show individual items if they exist */}
+                          {entry.meal_entry_items && entry.meal_entry_items.length > 0 ? (
+                            <>
+                              <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Items in this meal</h4>
+                              <div className="space-y-2 mb-4">
+                                {entry.meal_entry_items.map((item) => (
+                                  <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium">{item.quantity}x</span>
+                                      <span className="text-sm">{item.food_item_name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                      <span>{item.calories}cal</span>
+                                      <span>{item.protein}g protein</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Total Nutritional Breakdown</h4>
+                            </>
+                          ) : (
+                            <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Nutritional Breakdown</h4>
+                          )}
                           <div className="grid grid-cols-2 gap-3">
                             <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                               <span className="text-sm text-muted-foreground">Calories</span>
