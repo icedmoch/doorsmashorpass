@@ -128,12 +128,13 @@ const OrderHistory = () => {
 
   const fetchAvailableDeliveries = async (userId: string) => {
     try {
-      // Fetch orders that need delivery but haven't been claimed
+      // Fetch orders that need delivery but haven't been claimed (deliverer_id is null)
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('*')
         .neq('user_id', userId)
         .in('status', ['pending', 'preparing', 'ready'])
+        .is('deliverer_id', null)
         .order('created_at', { ascending: false }) as any;
 
       if (ordersError) throw ordersError;
@@ -172,7 +173,7 @@ const OrderHistory = () => {
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('*')
-        .eq('user_id', userId)
+        .eq('deliverer_id', userId)
         .order('created_at', { ascending: false }) as any;
 
       if (ordersError) throw ordersError;
@@ -212,6 +213,7 @@ const OrderHistory = () => {
       const { error } = await supabase
         .from('orders')
         .update({
+          deliverer_id: user.id,
           status: 'preparing',
         })
         .eq('id', orderId as any);
@@ -243,7 +245,8 @@ const OrderHistory = () => {
       const { error } = await supabase
         .from('orders')
         .update({
-          status: 'cancelled',
+          deliverer_id: null,
+          status: 'pending',
         })
         .eq('id', orderId as any);
 
