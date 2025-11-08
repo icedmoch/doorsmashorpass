@@ -49,12 +49,20 @@ serve(async (req) => {
     logStep("Request params", { orderId });
 
     // Get order details (using user's auth context)
+    logStep("Fetching order", { orderId, userId: user.id });
+    
     const { data: order, error: orderError } = await supabaseClient
       .from("orders")
       .select("*")
       .eq("id", orderId)
       .eq("user_id", user.id)
       .maybeSingle();
+
+    logStep("Order query result", { 
+      hasData: !!order, 
+      hasError: !!orderError,
+      errorDetails: orderError ? { message: orderError.message, code: orderError.code } : null 
+    });
 
     if (orderError) {
       logStep("Order fetch error", { error: orderError });
@@ -66,7 +74,12 @@ serve(async (req) => {
       throw new Error("Order not found or unauthorized");
     }
 
-    logStep("Order fetched", { orderId, delivererId: order.deliverer_id });
+    logStep("Order fetched successfully", { 
+      orderId: order.id, 
+      userId: order.user_id,
+      delivererId: order.deliverer_id,
+      status: order.status 
+    });
 
     // Check if order has a deliverer assigned
     if (!order.deliverer_id) {
