@@ -56,27 +56,49 @@ export function MealTrackingDialog({
       // Get or create food item for this meal
       const foodItemName = mealName || orderItems.map(item => item.food_item_name).join(", ");
       const servingMultiplier = parseFloat(servings);
+      const location = orderItems[0]?.dining_hall || "Custom";
+      const currentDate = new Date().toISOString().split('T')[0];
+      const mealType = "lunch";
 
-      const { data: foodItem, error: foodError } = await supabase
+      // Check if food item already exists
+      const { data: existingFoodItem } = await supabase
         .from("food_items")
-        .insert({
-          name: foodItemName,
-          calories: Math.round(totalCalories / servingMultiplier),
-          total_fat: totalFat / servingMultiplier,
-          sodium: 0,
-          total_carb: totalCarbs / servingMultiplier,
-          dietary_fiber: 0,
-          sugars: 0,
-          protein: totalProtein / servingMultiplier,
-          serving_size: "1 meal",
-          location: orderItems[0]?.dining_hall || "Custom",
-          meal_type: "lunch",
-          date: new Date().toISOString().split('T')[0],
-        })
         .select()
-        .single();
+        .eq("name", foodItemName)
+        .eq("location", location)
+        .eq("date", currentDate)
+        .eq("meal_type", mealType)
+        .maybeSingle();
 
-      if (foodError) throw foodError;
+      let foodItem;
+
+      if (existingFoodItem) {
+        // Use existing food item
+        foodItem = existingFoodItem;
+      } else {
+        // Create new food item
+        const { data: newFoodItem, error: foodError } = await supabase
+          .from("food_items")
+          .insert({
+            name: foodItemName,
+            calories: Math.round(totalCalories / servingMultiplier),
+            total_fat: totalFat / servingMultiplier,
+            sodium: 0,
+            total_carb: totalCarbs / servingMultiplier,
+            dietary_fiber: 0,
+            sugars: 0,
+            protein: totalProtein / servingMultiplier,
+            serving_size: "1 meal",
+            location: location,
+            meal_type: mealType,
+            date: currentDate,
+          })
+          .select()
+          .single();
+
+        if (foodError) throw foodError;
+        foodItem = newFoodItem;
+      }
 
       // Add to meal entries
       const { error: entryError } = await supabase
