@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Search, ShoppingCart, SlidersHorizontal, Minus, Plus, Trash2 } from "lucide-react";
+import { Search, ShoppingCart, Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import {
   Select,
@@ -131,7 +131,7 @@ const Menu = () => {
         
         {/* Filters */}
         <Card className="p-6 mb-6 shadow-md">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select value={selectedHall} onValueChange={setSelectedHall}>
               <SelectTrigger>
                 <SelectValue placeholder="Select dining hall" />
@@ -154,24 +154,6 @@ const Menu = () => {
                 className="pl-10"
               />
             </div>
-            
-            <Button variant="outline" className="gap-2">
-              <SlidersHorizontal className="h-4 w-4" />
-              Sort by
-            </Button>
-          </div>
-          
-          <div className="flex flex-wrap gap-2 mt-4">
-            {filters.map(filter => (
-              <Badge
-                key={filter}
-                variant={selectedFilters.includes(filter) ? "default" : "outline"}
-                className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
-                onClick={() => toggleFilter(filter)}
-              >
-                {filter}
-              </Badge>
-            ))}
           </div>
         </Card>
         
