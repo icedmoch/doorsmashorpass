@@ -151,69 +151,102 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 overflow-hidden">
-      {/* Hero Section */}
-      <div className="container mx-auto px-4 py-12 lg:py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Side - Branding & Features */}
-          <div className="space-y-8">
-            {/* Logo/Brand - Appears First */}
-            <div className="animate-fade-in opacity-0 [animation-delay:200ms] [animation-fill-mode:forwards]">
-              <h1 className="text-5xl lg:text-6xl font-bold bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">
-                DoorSmashOrPass
-              </h1>
-              <p className="text-xl text-muted-foreground mt-4">
-                Your campus dining experience, reimagined
-              </p>
-            </div>
+    <div className="min-h-screen bg-hero-gradient overflow-hidden relative">
+      {/* Decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-white/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
+      </div>
 
-            {/* Features Grid - Staggered Animation */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-              <div className="animate-fade-in opacity-0 [animation-delay:800ms] [animation-fill-mode:forwards]">
-                <Card className="border-primary/20 hover:border-primary/40 transition-colors">
-                  <CardContent className="pt-6">
-                    <div className="text-3xl mb-2">🥗</div>
-                    <h3 className="font-semibold mb-1">Track Nutrition</h3>
-                    <p className="text-sm text-muted-foreground">Monitor your daily intake</p>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="animate-fade-in opacity-0 [animation-delay:1000ms] [animation-fill-mode:forwards]">
-                <Card className="border-primary/20 hover:border-primary/40 transition-colors">
-                  <CardContent className="pt-6">
-                    <div className="text-3xl mb-2">🍕</div>
-                    <h3 className="font-semibold mb-1">Browse Menu</h3>
-                    <p className="text-sm text-muted-foreground">Explore dining options</p>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="animate-fade-in opacity-0 [animation-delay:1200ms] [animation-fill-mode:forwards]">
-                <Card className="border-primary/20 hover:border-primary/40 transition-colors">
-                  <CardContent className="pt-6">
-                    <div className="text-3xl mb-2">🤖</div>
-                    <h3 className="font-semibold mb-1">AI Chatbot</h3>
-                    <p className="text-sm text-muted-foreground">Get instant recommendations</p>
-                  </CardContent>
-                </Card>
-              </div>
+      <div className="relative z-10">
+        {/* Header */}
+        <header className="container mx-auto px-6 py-6 flex items-center justify-between opacity-0 animate-fade-in [animation-delay:100ms]">
+          <div className="text-white font-bold text-xl">🍕 DoorSmashOrPass</div>
+          <Button 
+            variant="outline" 
+            className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+            onClick={() => document.getElementById('auth-section')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            Sign In
+          </Button>
+        </header>
 
-              <div className="animate-fade-in opacity-0 [animation-delay:1400ms] [animation-fill-mode:forwards]">
-                <Card className="border-primary/20 hover:border-primary/40 transition-colors">
-                  <CardContent className="pt-6">
-                    <div className="text-3xl mb-2">🚚</div>
-                    <h3 className="font-semibold mb-1">Fast Delivery</h3>
-                    <p className="text-sm text-muted-foreground">Track your orders live</p>
-                  </CardContent>
-                </Card>
+        {/* Hero Section */}
+        <div className="container mx-auto px-6 py-20 lg:py-32 text-center">
+          <h1 className="text-6xl lg:text-8xl font-bold text-white mb-6 opacity-0 animate-fade-in [animation-delay:300ms]">
+            #1 Campus Dining
+            <br />
+            Experience
+          </h1>
+          
+          <p className="text-xl lg:text-2xl text-white/90 max-w-3xl mx-auto mb-12 opacity-0 animate-fade-in [animation-delay:500ms]">
+            Order food, track nutrition, and get AI-powered meal recommendations. 
+            Everything you need for a smarter dining experience.
+          </p>
+
+          <Button 
+            size="lg"
+            className="bg-white text-primary hover:bg-white/90 text-lg px-8 py-6 shadow-2xl opacity-0 animate-fade-in [animation-delay:700ms]"
+            onClick={() => document.getElementById('auth-section')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            Get Started Free
+          </Button>
+
+          {/* App Mockup */}
+          <div className="mt-20 relative opacity-0 animate-slide-up [animation-delay:900ms]">
+            <div className="relative mx-auto max-w-5xl">
+              {/* Browser-like window */}
+              <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+                {/* Window header */}
+                <div className="bg-white/80 px-4 py-3 flex items-center gap-2 border-b border-gray-200">
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <div className="flex-1 text-center text-sm text-gray-600">doorsmashpass.app</div>
+                </div>
+                
+                {/* App preview */}
+                <div className="p-8 bg-gradient-to-br from-background to-muted/20">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Feature 1 */}
+                    <Card className="opacity-0 animate-fade-in [animation-delay:1100ms]">
+                      <CardContent className="pt-6 text-center">
+                        <div className="text-4xl mb-3">🥗</div>
+                        <h3 className="font-semibold text-lg mb-2">Track Nutrition</h3>
+                        <p className="text-sm text-muted-foreground">Monitor daily intake</p>
+                      </CardContent>
+                    </Card>
+
+                    {/* Feature 2 */}
+                    <Card className="opacity-0 animate-fade-in [animation-delay:1300ms]">
+                      <CardContent className="pt-6 text-center">
+                        <div className="text-4xl mb-3">🍕</div>
+                        <h3 className="font-semibold text-lg mb-2">Browse Menu</h3>
+                        <p className="text-sm text-muted-foreground">Explore dining options</p>
+                      </CardContent>
+                    </Card>
+
+                    {/* Feature 3 */}
+                    <Card className="opacity-0 animate-fade-in [animation-delay:1500ms]">
+                      <CardContent className="pt-6 text-center">
+                        <div className="text-4xl mb-3">🤖</div>
+                        <h3 className="font-semibold text-lg mb-2">AI Chatbot</h3>
+                        <p className="text-sm text-muted-foreground">Smart recommendations</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Right Side - Auth Forms - Appears After Brand */}
-          <div className="animate-fade-in opacity-0 [animation-delay:400ms] [animation-fill-mode:forwards]">
-            <Card className="w-full shadow-xl border-primary/10">
+        {/* Auth Section */}
+        <div id="auth-section" className="bg-background py-20">
+          <div className="container mx-auto px-6">
+            <Card className="w-full max-w-md mx-auto shadow-xl">
               <CardHeader>
                 <CardTitle className="text-2xl">Get Started</CardTitle>
                 <CardDescription>Sign in to your account or create a new one</CardDescription>
