@@ -1,20 +1,25 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, CreditCard, CheckCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { calculateBMR, calculateTDEE } from "@/lib/calculations";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const Settings = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     age: "",
@@ -32,7 +37,22 @@ const Settings = () => {
 
   useEffect(() => {
     loadProfile();
-  }, []);
+    
+    // Check if returning from Stripe Connect onboarding
+    const connectStatus = searchParams.get('connect');
+    if (connectStatus === 'success') {
+      toast({
+        title: "Stripe connected!",
+        description: "You can now receive payments for deliveries",
+      });
+    } else if (connectStatus === 'refresh') {
+      toast({
+        title: "Setup incomplete",
+        description: "Please complete your Stripe setup to receive payments",
+        variant: "destructive",
+      });
+    }
+  }, [searchParams]);
 
   const loadProfile = async () => {
     try {
@@ -62,6 +82,7 @@ const Settings = () => {
           goalCarbs: profile.goal_carbs?.toString() || "",
           goalFat: profile.goal_fat?.toString() || "",
         });
+        setStripeAccountId(profile.stripe_account_id || null);
       }
     } catch (error: any) {
       toast({
@@ -128,6 +149,27 @@ const Settings = () => {
     }
   };
 
+  const handleConnectStripe = async () => {
+    setIsConnectingStripe(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-connect-account');
+      
+      if (error) throw error;
+      
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create Stripe account",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConnectingStripe(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -142,6 +184,49 @@ const Settings = () => {
       <div className="container mx-auto px-4 py-8 max-w-2xl pt-24">
         <h1 className="text-3xl font-bold text-foreground mb-2">Profile Settings</h1>
         <p className="text-muted-foreground mb-8">Update your personal information</p>
+
+        {/* Stripe Connect Card */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Delivery Payments
+            </CardTitle>
+            <CardDescription>
+              Connect your Stripe account to receive payments for deliveries
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stripeAccountId ? (
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                <div className="flex-1">
+                  <p className="font-medium">Stripe Connected</p>
+                  <p className="text-sm text-muted-foreground">
+                    You can now claim deliveries and receive payments
+                  </p>
+                </div>
+                <Badge variant="secondary">Active</Badge>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  To earn money from deliveries, you need to connect a Stripe account. 
+                  You'll receive 98% of each $10 delivery fee ($9.80).
+                </p>
+                <Button 
+                  onClick={handleConnectStripe} 
+                  disabled={isConnectingStripe}
+                  className="w-full sm:w-auto"
+                >
+                  {isConnectingStripe && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Connect Stripe Account
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <form onSubmit={handleSubmit} className="space-y-6 bg-card border border-border rounded-lg p-6">
           {/* Full Name */}
