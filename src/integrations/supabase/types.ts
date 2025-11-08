@@ -163,10 +163,14 @@ export type Database = {
       orders: {
         Row: {
           created_at: string | null
+          delivery_latitude: number | null
           delivery_location: string
+          delivery_longitude: number | null
+          delivery_option: string | null
           delivery_time: string | null
           id: string
           special_instructions: string | null
+          special_notes: string | null
           status: string
           total_calories: number | null
           total_carbs: number | null
@@ -177,10 +181,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          delivery_latitude?: number | null
           delivery_location: string
+          delivery_longitude?: number | null
+          delivery_option?: string | null
           delivery_time?: string | null
           id?: string
           special_instructions?: string | null
+          special_notes?: string | null
           status?: string
           total_calories?: number | null
           total_carbs?: number | null
@@ -191,10 +199,14 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          delivery_latitude?: number | null
           delivery_location?: string
+          delivery_longitude?: number | null
+          delivery_option?: string | null
           delivery_time?: string | null
           id?: string
           special_instructions?: string | null
+          special_notes?: string | null
           status?: string
           total_calories?: number | null
           total_carbs?: number | null
