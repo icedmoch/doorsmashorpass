@@ -601,9 +601,6 @@ const OrderHistory = () => {
               <div className="bg-muted p-4 rounded-lg">
                 <p className="text-sm font-medium mb-2">Order Details</p>
                 <p className="text-sm text-muted-foreground">Delivery Fee: $10.00</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Platform fee (2%): $0.20 • Deliverer receives: $9.80
-                </p>
               </div>
               <div className="flex gap-2">
                 <Button 
@@ -826,9 +823,9 @@ const OrderCard = ({
           <div className="space-y-3">
             <div className="p-3 bg-primary/5 rounded-lg">
               <p className="text-sm font-medium mb-1">Delivery Payment</p>
-              <p className="text-lg font-bold text-primary">$9.80</p>
+              <p className="text-lg font-bold text-primary">$10.00</p>
               <p className="text-xs text-muted-foreground">
-                Customer pays $10.00 • Platform fee: $0.20
+                Delivery fee paid by customer
               </p>
             </div>
             <Button 

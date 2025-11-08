@@ -86,25 +86,6 @@ serve(async (req) => {
       throw new Error("Order must have a deliverer assigned before payment");
     }
 
-    // Get deliverer's Stripe account (using admin client to bypass RLS)
-    const { data: delivererProfile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("stripe_account_id")
-      .eq("id", order.deliverer_id)
-      .maybeSingle();
-
-    if (profileError) {
-      logStep("Profile fetch error", { error: profileError });
-      throw new Error(`Failed to fetch deliverer profile: ${profileError.message}`);
-    }
-
-    if (!delivererProfile?.stripe_account_id) {
-      logStep("No Stripe account", { delivererId: order.deliverer_id });
-      throw new Error("Deliverer has not connected their Stripe account");
-    }
-
-    logStep("Deliverer Stripe account found", { accountId: delivererProfile.stripe_account_id });
-
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
@@ -119,8 +100,8 @@ serve(async (req) => {
 
     logStep("Customer check", { customerId });
 
-    // Create a payment session with destination charge
-    // $10 total: $9.80 to deliverer, $0.20 platform fee
+    // Create a simple payment session (no Stripe Connect)
+    // Payment goes to your platform account
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -138,19 +119,10 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      payment_intent_data: {
-        application_fee_amount: 20, // Platform fee: $0.20 in cents
-        transfer_data: {
-          destination: delivererProfile.stripe_account_id, // Deliverer gets $9.80
-        },
-        metadata: {
-          order_id: orderId,
-          deliverer_id: order.deliverer_id,
-        },
-      },
       metadata: {
         order_id: orderId,
         deliverer_id: order.deliverer_id,
+        user_id: user.id,
       },
       success_url: `${req.headers.get("origin")}/student/order-history?payment=success&order=${orderId}`,
       cancel_url: `${req.headers.get("origin")}/student/order-history?payment=cancelled&order=${orderId}`,
