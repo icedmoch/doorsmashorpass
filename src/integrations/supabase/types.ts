@@ -158,7 +158,9 @@ export type Database = {
         Row: {
           claimed_at: string | null
           created_at: string
+          delivery_latitude: number | null
           delivery_location: string | null
+          delivery_longitude: number | null
           delivery_option: string
           delivery_person_id: number | null
           delivery_time: string
@@ -174,7 +176,9 @@ export type Database = {
         Insert: {
           claimed_at?: string | null
           created_at?: string
+          delivery_latitude?: number | null
           delivery_location?: string | null
+          delivery_longitude?: number | null
           delivery_option: string
           delivery_person_id?: number | null
           delivery_time: string
@@ -190,7 +194,9 @@ export type Database = {
         Update: {
           claimed_at?: string | null
           created_at?: string
+          delivery_latitude?: number | null
           delivery_location?: string | null
+          delivery_longitude?: number | null
           delivery_option?: string
           delivery_person_id?: number | null
           delivery_time?: string

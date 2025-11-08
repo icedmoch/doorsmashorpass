@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, Clock, MapPin, Package, Loader2, User, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { DeliveryMap } from "@/components/DeliveryMap";
 
 type OrderStatus = 'pending' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -26,6 +27,8 @@ type Order = {
   id: number;
   delivery_option: string;
   delivery_location: string | null;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
   delivery_time: string;
   special_notes: string | null;
   status: OrderStatus;
@@ -529,6 +532,21 @@ const OrderCard = ({
             </div>
           </div>
         </div>
+
+        {/* Delivery Map - Show for deliveries with coordinates */}
+        {order.delivery_option === 'delivery' && 
+         order.delivery_latitude && 
+         order.delivery_longitude && 
+         order.delivery_location && (
+          <div className="mb-6">
+            <h4 className="font-semibold mb-3">Delivery Location</h4>
+            <DeliveryMap 
+              lat={order.delivery_latitude}
+              lng={order.delivery_longitude}
+              address={order.delivery_location}
+            />
+          </div>
+        )}
 
         {order.special_notes && (
           <div className="mb-6 p-3 bg-muted/50 rounded-lg">
