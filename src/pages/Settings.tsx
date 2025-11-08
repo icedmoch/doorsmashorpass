@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { calculateBMR, calculateTDEE } from "@/lib/calculations";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -69,15 +70,26 @@ const Settings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
+      const height = parseFloat(formData.height);
+      const weight = parseFloat(formData.weight);
+      const age = parseInt(formData.age);
+      const activityLevel = parseInt(formData.activityLevel);
+
+      // Calculate BMR and TDEE
+      const bmr = calculateBMR(height, weight, age, formData.sex);
+      const tdee = calculateTDEE(bmr, activityLevel);
+
       const { error } = await supabase
         .from("profiles")
         .update({
           full_name: formData.fullName,
-          age: parseInt(formData.age),
+          age: age,
           sex: formData.sex,
-          height_inches: parseFloat(formData.height),
-          weight_lbs: parseFloat(formData.weight),
-          activity_level: parseInt(formData.activityLevel),
+          height_inches: height,
+          weight_lbs: weight,
+          activity_level: activityLevel,
+          bmr: bmr,
+          tdee: tdee,
         })
         .eq("id", user.id);
 
