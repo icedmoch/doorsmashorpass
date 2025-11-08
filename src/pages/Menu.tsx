@@ -115,6 +115,13 @@ const Menu = () => {
         : [...prev, filter]
     );
   };
+
+  // Filter menu items based on selected dining hall and search query
+  const filteredMenuItems = menuItems.filter(item => {
+    const matchesHall = selectedHall === "all" || item.diningHall.toLowerCase() === diningHalls.find(h => h.id === selectedHall)?.name.toLowerCase();
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesHall && matchesSearch;
+  });
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -160,11 +167,17 @@ const Menu = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Menu Grid */}
           <div className="lg:col-span-3">
-            <div className="space-y-4">
-              {menuItems.map(item => (
-                <MenuItemCard key={item.id} {...item} />
-              ))}
-            </div>
+            {filteredMenuItems.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-muted-foreground">No items found matching your criteria</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {filteredMenuItems.map(item => (
+                  <MenuItemCard key={item.id} {...item} />
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Cart Sidebar */}
