@@ -81,11 +81,14 @@ const OrderHistory = () => {
     
     initAuth();
 
-    // Check for payment pending in URL
+    // Check for payment success in URL
     const orderId = searchParams.get('order');
     const paymentStatus = searchParams.get('payment');
     
-    if (orderId && paymentStatus === 'pending') {
+    if (orderId && paymentStatus === 'success') {
+      // Verify payment completion
+      verifyPayment(orderId);
+    } else if (orderId && paymentStatus === 'pending') {
       // Show payment dialog
       handleShowPaymentDialog(orderId);
     }
@@ -301,6 +304,38 @@ const OrderHistory = () => {
       toast({
         title: "Error",
         description: "Failed to unclaim delivery",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const verifyPayment = async (orderId: string) => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-payment', {
+        body: { orderId },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: "Payment verified!",
+          description: "Your order is now out for delivery",
+        });
+
+        // Refresh orders
+        await fetchOrders(user.id);
+        
+        // Clear URL parameters
+        navigate('/student/order-history', { replace: true });
+      }
+    } catch (error: any) {
+      console.error('Error verifying payment:', error);
+      toast({
+        title: "Payment verification failed",
+        description: error.message || "Please contact support if you were charged",
         variant: "destructive",
       });
     }
