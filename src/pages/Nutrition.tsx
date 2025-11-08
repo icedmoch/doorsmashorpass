@@ -624,7 +624,6 @@ const Nutrition = () => {
                   <SelectItem value="Breakfast">Breakfast</SelectItem>
                   <SelectItem value="Lunch">Lunch</SelectItem>
                   <SelectItem value="Dinner">Dinner</SelectItem>
-                  <SelectItem value="Dinner">Snack</SelectItem>
                 </SelectContent>
               </Select>
             </div>
