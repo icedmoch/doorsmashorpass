@@ -87,6 +87,7 @@ const OrderHistory = () => {
     
     if (orderId && paymentStatus === 'success') {
       // Verify payment completion
+      console.log('Payment success detected, verifying payment for order:', orderId);
       verifyPayment(orderId);
     } else if (orderId && paymentStatus === 'pending') {
       // Show payment dialog
@@ -312,10 +313,14 @@ const OrderHistory = () => {
   const verifyPayment = async (orderId: string) => {
     if (!user) return;
 
+    console.log('Starting payment verification for order:', orderId);
+    
     try {
       const { data, error } = await supabase.functions.invoke('verify-payment', {
         body: { orderId },
       });
+
+      console.log('Verify payment response:', { data, error });
 
       if (error) throw error;
 
@@ -335,7 +340,7 @@ const OrderHistory = () => {
       console.error('Error verifying payment:', error);
       toast({
         title: "Payment verification failed",
-        description: error.message || "Please contact support if you were charged",
+        description: error.message || "Please refresh the page or contact support",
         variant: "destructive",
       });
     }
@@ -908,13 +913,22 @@ const OrderCard = ({
                 <p className="text-xs text-muted-foreground mb-3">
                   A deliverer has claimed your order. Please complete payment to proceed.
                 </p>
-                <Button 
-                  className="w-full" 
-                  size="sm"
-                  onClick={onInitiatePayment}
-                >
-                  Pay $10.00
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    className="flex-1" 
+                    size="sm"
+                    onClick={onInitiatePayment}
+                  >
+                    Pay $10.00
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.location.reload()}
+                  >
+                    Refresh
+                  </Button>
+                </div>
               </div>
             )}
             {order.stripe_payment_intent_id && order.status !== 'delivered' && (
