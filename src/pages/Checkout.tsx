@@ -92,6 +92,7 @@ const Checkout = () => {
       // Create order items
       const orderItems = items.map(item => ({
         order_id: order.id,
+        food_item_id: parseInt(item.id),
         food_item_name: item.name,
         quantity: item.quantity,
         calories: item.calories,

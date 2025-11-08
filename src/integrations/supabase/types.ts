@@ -73,7 +73,7 @@ export type Database = {
           id: number
           meal_category: string
           servings: number | null
-          user_id: string
+          user_id: number
         }
         Insert: {
           created_at?: string | null
@@ -82,7 +82,7 @@ export type Database = {
           id?: number
           meal_category: string
           servings?: number | null
-          user_id: string
+          user_id: number
         }
         Update: {
           created_at?: string | null
@@ -91,7 +91,7 @@ export type Database = {
           id?: number
           meal_category?: string
           servings?: number | null
-          user_id?: string
+          user_id?: number
         }
         Relationships: [
           {
@@ -101,40 +101,50 @@ export type Database = {
             referencedRelation: "food_items"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "meal_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       order_items: {
         Row: {
-          calories: number
-          carbs: number
-          created_at: string
-          fat: number
+          calories: number | null
+          carbs: number | null
+          created_at: string | null
+          fat: number | null
+          food_item_id: number
           food_item_name: string
-          id: number
-          order_id: number
-          protein: number
+          id: string
+          order_id: string
+          protein: number | null
           quantity: number
         }
         Insert: {
-          calories?: number
-          carbs?: number
-          created_at?: string
-          fat?: number
+          calories?: number | null
+          carbs?: number | null
+          created_at?: string | null
+          fat?: number | null
+          food_item_id: number
           food_item_name: string
-          id?: never
-          order_id: number
-          protein?: number
+          id?: string
+          order_id: string
+          protein?: number | null
           quantity?: number
         }
         Update: {
-          calories?: number
-          carbs?: number
-          created_at?: string
-          fat?: number
+          calories?: number | null
+          carbs?: number | null
+          created_at?: string | null
+          fat?: number | null
+          food_item_id?: number
           food_item_name?: string
-          id?: never
-          order_id?: number
-          protein?: number
+          id?: string
+          order_id?: string
+          protein?: number | null
           quantity?: number
         }
         Relationships: [
@@ -149,88 +159,161 @@ export type Database = {
       }
       orders: {
         Row: {
-          claimed_at: string | null
-          created_at: string
-          delivery_latitude: number | null
-          delivery_location: string | null
-          delivery_longitude: number | null
-          delivery_option: string
-          delivery_person_id: string | null
-          delivery_time: string
-          id: number
-          special_notes: string | null
-          status: Database["public"]["Enums"]["order_status"]
-          total_calories: number
-          total_carbs: number
-          total_fat: number
-          total_protein: number
-          user_id: string
+          created_at: string | null
+          delivery_location: string
+          delivery_time: string | null
+          id: string
+          special_instructions: string | null
+          status: string
+          total_calories: number | null
+          total_carbs: number | null
+          total_fat: number | null
+          total_protein: number | null
+          updated_at: string | null
+          user_id: string | null
         }
         Insert: {
-          claimed_at?: string | null
-          created_at?: string
-          delivery_latitude?: number | null
-          delivery_location?: string | null
-          delivery_longitude?: number | null
-          delivery_option: string
-          delivery_person_id?: string | null
-          delivery_time: string
-          id?: never
-          special_notes?: string | null
-          status?: Database["public"]["Enums"]["order_status"]
-          total_calories?: number
-          total_carbs?: number
-          total_fat?: number
-          total_protein?: number
-          user_id: string
+          created_at?: string | null
+          delivery_location: string
+          delivery_time?: string | null
+          id?: string
+          special_instructions?: string | null
+          status?: string
+          total_calories?: number | null
+          total_carbs?: number | null
+          total_fat?: number | null
+          total_protein?: number | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
-          claimed_at?: string | null
-          created_at?: string
-          delivery_latitude?: number | null
-          delivery_location?: string | null
-          delivery_longitude?: number | null
-          delivery_option?: string
-          delivery_person_id?: string | null
-          delivery_time?: string
-          id?: never
-          special_notes?: string | null
-          status?: Database["public"]["Enums"]["order_status"]
-          total_calories?: number
-          total_carbs?: number
-          total_fat?: number
-          total_protein?: number
-          user_id?: string
+          created_at?: string | null
+          delivery_location?: string
+          delivery_time?: string | null
+          id?: string
+          special_instructions?: string | null
+          status?: string
+          total_calories?: number | null
+          total_carbs?: number | null
+          total_fat?: number | null
+          total_protein?: number | null
+          updated_at?: string | null
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
+          activity_level: number | null
+          age: number | null
           created_at: string | null
           email: string | null
           full_name: string | null
+          height_cm: number | null
+          height_unit: string | null
           id: string
+          onboarding_completed: boolean | null
+          sex: string | null
+          weight_kg: number | null
+          weight_unit: string | null
         }
         Insert: {
+          activity_level?: number | null
+          age?: number | null
           created_at?: string | null
           email?: string | null
           full_name?: string | null
+          height_cm?: number | null
+          height_unit?: string | null
           id: string
+          onboarding_completed?: boolean | null
+          sex?: string | null
+          weight_kg?: number | null
+          weight_unit?: string | null
         }
         Update: {
+          activity_level?: number | null
+          age?: number | null
           created_at?: string | null
           email?: string | null
           full_name?: string | null
+          height_cm?: number | null
+          height_unit?: string | null
           id?: string
+          onboarding_completed?: boolean | null
+          sex?: string | null
+          weight_kg?: number | null
+          weight_unit?: string | null
         }
         Relationships: []
+      }
+      users: {
+        Row: {
+          activity_level: string
+          age: number
+          bmr: number | null
+          created_at: string | null
+          height_cm: number
+          id: number
+          profile_id: string | null
+          sex: string
+          tdee: number | null
+          username: string
+          weight_kg: number
+        }
+        Insert: {
+          activity_level: string
+          age: number
+          bmr?: number | null
+          created_at?: string | null
+          height_cm: number
+          id?: number
+          profile_id?: string | null
+          sex: string
+          tdee?: number | null
+          username: string
+          weight_kg: number
+        }
+        Update: {
+          activity_level?: string
+          age?: number
+          bmr?: number | null
+          created_at?: string | null
+          height_cm?: number
+          id?: number
+          profile_id?: string | null
+          sex?: string
+          tdee?: number | null
+          username?: string
+          weight_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_order_totals: {
+        Args: { order_uuid: string }
+        Returns: undefined
+      }
     }
     Enums: {
       order_status:

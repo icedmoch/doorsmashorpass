@@ -12,6 +12,8 @@ import Checkout from "./pages/Checkout";
 import OrderHistory from "./pages/OrderHistory";
 import Nutrition from "./pages/Nutrition";
 import NotFound from "./pages/NotFound";
+import Onboarding from "./pages/Onboarding";
+import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -26,6 +28,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Auth />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            <Route path="/student/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/student/nutrition" element={<ProtectedRoute><Nutrition /></ProtectedRoute>} />
             <Route path="/student/menu" element={<ProtectedRoute><Menu /></ProtectedRoute>} />
             <Route path="/student/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
