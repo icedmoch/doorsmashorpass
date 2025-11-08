@@ -52,15 +52,6 @@ const Settings = () => {
           ? (profile.weight_kg / 0.453592).toFixed(1)
           : profile.weight_kg?.toFixed(1) || "";
 
-        // Map text activity level to numeric values
-        const activityLevelReverseMap: Record<string, string> = {
-          "sedentary": "1",
-          "light": "2",
-          "moderate": "3",
-          "active": "4",
-          "very_active": "5",
-        };
-
         setFormData({
           fullName: profile.full_name || "",
           age: profile.age?.toString() || "",
@@ -69,7 +60,7 @@ const Settings = () => {
           heightUnit: profile.height_unit || "cm",
           weight: displayWeight,
           weightUnit: profile.weight_unit || "kg",
-          activityLevel: activityLevelReverseMap[profile.activity_level as any] || "3",
+          activityLevel: profile.activity_level?.toString() || "3",
         });
       }
     } catch (error: any) {
@@ -100,15 +91,6 @@ const Settings = () => {
         ? parseFloat(formData.weight) * 0.453592
         : parseFloat(formData.weight);
 
-      // Map numeric activity level to text values
-      const activityLevelMap: Record<string, string> = {
-        "1": "sedentary",
-        "2": "light",
-        "3": "moderate",
-        "4": "active",
-        "5": "very_active",
-      };
-
       const { error } = await supabase
         .from("profiles")
         .update({
@@ -119,7 +101,7 @@ const Settings = () => {
           height_unit: formData.heightUnit,
           weight_kg: weightInKg,
           weight_unit: formData.weightUnit,
-          activity_level: activityLevelMap[formData.activityLevel] as any,
+          activity_level: parseInt(formData.activityLevel),
         })
         .eq("id", user.id);
 

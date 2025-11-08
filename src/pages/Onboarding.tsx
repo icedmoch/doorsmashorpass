@@ -39,15 +39,6 @@ const Onboarding = () => {
         ? parseFloat(formData.weight) * 0.453592
         : parseFloat(formData.weight);
 
-      // Map numeric activity level to text values
-      const activityLevelMap: Record<string, string> = {
-        "1": "sedentary",
-        "2": "light",
-        "3": "moderate",
-        "4": "active",
-        "5": "very_active",
-      };
-
       const { error } = await supabase
         .from("profiles")
         .update({
@@ -57,7 +48,7 @@ const Onboarding = () => {
           height_unit: formData.heightUnit,
           weight_kg: weightInKg,
           weight_unit: formData.weightUnit,
-          activity_level: activityLevelMap[formData.activityLevel] as any,
+          activity_level: parseInt(formData.activityLevel),
           onboarding_completed: true,
         })
         .eq("id", user.id);
