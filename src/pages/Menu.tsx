@@ -44,6 +44,7 @@ const Menu = () => {
       allergens: ["Dairy"],
       available: true,
       category: "Main Dish",
+      diningHall: "Worcester",
     },
     {
       id: "2",
@@ -55,6 +56,7 @@ const Menu = () => {
       allergens: ["Gluten", "Dairy"],
       available: true,
       category: "Grab & Go",
+      diningHall: "Franklin",
     },
     {
       id: "3",
@@ -66,6 +68,7 @@ const Menu = () => {
       allergens: [],
       available: true,
       category: "Salad",
+      diningHall: "Hampshire",
     },
     {
       id: "4",
@@ -77,6 +80,7 @@ const Menu = () => {
       allergens: ["Gluten"],
       available: false,
       category: "Main Dish",
+      diningHall: "Berkshire",
     },
     {
       id: "5",
@@ -88,6 +92,7 @@ const Menu = () => {
       allergens: ["Soy"],
       available: true,
       category: "Vegetarian",
+      diningHall: "Worcester",
     },
     {
       id: "6",
@@ -99,6 +104,7 @@ const Menu = () => {
       allergens: ["Dairy", "Tree Nuts"],
       available: true,
       category: "Grab & Go",
+      diningHall: "Franklin",
     },
   ];
   

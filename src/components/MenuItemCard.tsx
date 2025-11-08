@@ -14,6 +14,7 @@ type MenuItemCardProps = {
   allergens: string[];
   available: boolean;
   category: string;
+  diningHall?: string;
 };
 
 const MenuItemCard = ({ 
@@ -25,12 +26,13 @@ const MenuItemCard = ({
   fat, 
   allergens, 
   available,
-  category 
+  category,
+  diningHall 
 }: MenuItemCardProps) => {
   const { addItem } = useCart();
 
   const handleAddToCart = () => {
-    addItem({ id, name, calories, protein, carbs, fat });
+    addItem({ id, name, calories, protein, carbs, fat, diningHall });
   };
 
   return (
@@ -42,6 +44,11 @@ const MenuItemCard = ({
             <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
               {category}
             </Badge>
+            {diningHall && (
+              <Badge variant="outline" className="bg-muted/50">
+                {diningHall}
+              </Badge>
+            )}
             {!available && (
               <Badge variant="secondary" className="ml-auto">Sold Out</Badge>
             )}

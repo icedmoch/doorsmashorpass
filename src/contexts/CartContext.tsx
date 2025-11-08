@@ -9,6 +9,7 @@ type CartItem = {
   carbs: number;
   fat: number;
   quantity: number;
+  diningHall?: string;
 };
 
 type CartContextType = {
