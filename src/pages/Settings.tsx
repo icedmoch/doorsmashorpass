@@ -185,6 +185,46 @@ const Settings = () => {
         <h1 className="text-3xl font-bold text-foreground mb-2">Profile Settings</h1>
         <p className="text-muted-foreground mb-8">Update your personal information</p>
 
+        {/* Stripe Connect Section */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Payment Settings
+            </CardTitle>
+            <CardDescription>
+              Connect your Stripe account to receive payments for deliveries
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stripeAccountId ? (
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <div className="flex-1">
+                  <p className="font-medium">Stripe Connected</p>
+                  <p className="text-sm text-muted-foreground">You can now receive payments</p>
+                </div>
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  Active
+                </Badge>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Connect your bank account through Stripe to receive payments when delivering orders.
+                </p>
+                <Button 
+                  onClick={handleConnectStripe}
+                  disabled={isConnectingStripe}
+                  className="w-full sm:w-auto"
+                >
+                  {isConnectingStripe && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Connect with Stripe
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <form onSubmit={handleSubmit} className="space-y-6 bg-card border border-border rounded-lg p-6">
           {/* Full Name */}
