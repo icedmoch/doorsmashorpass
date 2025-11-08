@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import { toast } from "@/hooks/use-toast";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { MealTrackingDialog } from "@/components/MealTrackingDialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type OrderStatus = 'pending' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -45,14 +44,10 @@ type Order = {
   delivery_latitude?: number | null;
   delivery_longitude?: number | null;
   special_notes?: string | null;
-  stripe_payment_intent_id?: string | null;
-  stripe_session_id?: string | null;
-  deliverer_id?: string | null;
 };
 
 const OrderHistory = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [availableDeliveries, setAvailableDeliveries] = useState<Order[]>([]);
   const [myDeliveries, setMyDeliveries] = useState<Order[]>([]);
@@ -63,9 +58,6 @@ const OrderHistory = () => {
     open: false,
     order: null,
   });
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -81,15 +73,6 @@ const OrderHistory = () => {
     
     initAuth();
 
-    // Check for payment pending in URL
-    const orderId = searchParams.get('order');
-    const paymentStatus = searchParams.get('payment');
-    
-    if (orderId && paymentStatus === 'pending') {
-      // Show payment dialog
-      handleShowPaymentDialog(orderId);
-    }
-
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('OrderHistory - Auth state changed:', event, 'User:', session?.user?.id);
@@ -102,7 +85,7 @@ const OrderHistory = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [searchParams]);
+  }, []);
 
   const fetchOrders = async (userId: string) => {
     try {
@@ -310,16 +293,18 @@ const OrderHistory = () => {
     if (!user) return;
 
     try {
-      // Call the edge function to complete delivery and handle payout
-      const { error } = await supabase.functions.invoke('complete-delivery-payout', {
-        body: { orderId },
-      });
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'delivered',
+        })
+        .eq('id', orderId as any);
 
       if (error) throw error;
 
       toast({
         title: "Delivery completed!",
-        description: "Payment has been processed to your account",
+        description: "Great job delivering this order",
       });
 
       // Refresh the lists
@@ -332,38 +317,6 @@ const OrderHistory = () => {
         variant: "destructive",
       });
     }
-  };
-
-  const handleShowPaymentDialog = async (orderId: string) => {
-    try {
-      const { data: order, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('id', orderId)
-        .single();
-
-      if (error) throw error;
-      
-      setPendingOrder({
-        ...order,
-        status: order.status as OrderStatus,
-      });
-      setShowPaymentDialog(true);
-    } catch (error) {
-      console.error('Error fetching order:', error);
-    }
-  };
-
-  const handleInitiatePayment = async () => {
-    if (!pendingOrder || !user) return;
-
-    // For now, we need to wait for a deliverer to be assigned
-    // In a real app, you might create the payment upfront or have a pool of deliverers
-    toast({
-      title: "Waiting for delivery assignment",
-      description: "Your order is waiting for a delivery person to be assigned. Payment will be processed once claimed.",
-    });
-    setShowPaymentDialog(false);
   };
 
   const getStatusColor = (status: OrderStatus) => {
@@ -547,35 +500,6 @@ const OrderHistory = () => {
             orderId={mealTrackingDialog.order.id}
           />
         )}
-
-        {/* Payment Dialog */}
-        <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Payment Required</DialogTitle>
-              <DialogDescription>
-                Your order has been created. Once a delivery person claims your order, you'll be able to complete payment.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg">
-                <p className="text-sm font-medium mb-2">Order Details</p>
-                <p className="text-sm text-muted-foreground">Delivery Fee: $10.00</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Platform fee (2%): $0.20 • Deliverer receives: $9.80
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleInitiatePayment} className="flex-1">
-                  Understand
-                </Button>
-                <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
-                  Close
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
@@ -772,22 +696,13 @@ const OrderCard = ({
 
         {/* Action Buttons */}
         {showClaimButton && onClaim && (
-          <div className="space-y-3">
-            <div className="p-3 bg-primary/5 rounded-lg">
-              <p className="text-sm font-medium mb-1">Delivery Payment</p>
-              <p className="text-lg font-bold text-primary">$9.80</p>
-              <p className="text-xs text-muted-foreground">
-                Customer pays $10.00 • Platform fee: $0.20
-              </p>
-            </div>
-            <Button 
-              className="w-full" 
-              onClick={() => onClaim(order.id as any)}
-            >
-              <User className="mr-2 h-4 w-4" />
-              Claim This Delivery
-            </Button>
-          </div>
+          <Button 
+            className="w-full" 
+            onClick={() => onClaim(order.id as any)}
+          >
+            <User className="mr-2 h-4 w-4" />
+            Claim This Delivery
+          </Button>
         )}
 
         {showDeliveryActions && (
@@ -796,7 +711,6 @@ const OrderCard = ({
               <Button 
                 className="flex-1" 
                 onClick={() => onComplete(order.id as any)}
-                disabled={!order.stripe_payment_intent_id}
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 Mark as Delivered

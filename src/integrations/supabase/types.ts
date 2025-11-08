@@ -205,8 +205,6 @@ export type Database = {
           special_instructions: string | null
           special_notes: string | null
           status: string
-          stripe_payment_intent_id: string | null
-          stripe_session_id: string | null
           total_calories: number | null
           total_carbs: number | null
           total_fat: number | null
@@ -226,8 +224,6 @@ export type Database = {
           special_instructions?: string | null
           special_notes?: string | null
           status?: string
-          stripe_payment_intent_id?: string | null
-          stripe_session_id?: string | null
           total_calories?: number | null
           total_carbs?: number | null
           total_fat?: number | null
@@ -247,8 +243,6 @@ export type Database = {
           special_instructions?: string | null
           special_notes?: string | null
           status?: string
-          stripe_payment_intent_id?: string | null
-          stripe_session_id?: string | null
           total_calories?: number | null
           total_carbs?: number | null
           total_fat?: number | null
@@ -291,7 +285,6 @@ export type Database = {
           id: string
           onboarding_completed: boolean | null
           sex: string | null
-          stripe_account_id: string | null
           tdee: number | null
           weight_lbs: number | null
         }
@@ -312,7 +305,6 @@ export type Database = {
           id: string
           onboarding_completed?: boolean | null
           sex?: string | null
-          stripe_account_id?: string | null
           tdee?: number | null
           weight_lbs?: number | null
         }
@@ -333,7 +325,6 @@ export type Database = {
           id?: string
           onboarding_completed?: boolean | null
           sex?: string | null
-          stripe_account_id?: string | null
           tdee?: number | null
           weight_lbs?: number | null
         }
