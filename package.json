@@ -11,6 +11,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@elevenlabs/client": "^0.9.2",
+    "@elevenlabs/elevenlabs-js": "^2.22.0",
+    "@elevenlabs/react": "^0.9.1",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
