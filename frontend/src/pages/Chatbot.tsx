@@ -20,10 +20,20 @@ type Message = {
   timestamp: Date;
 };
 
+type UserProfile = {
+  dietary_preferences: string[];
+  goals: string;
+  goal_calories: number | null;
+  goal_protein: number | null;
+  goal_carbs: number | null;
+  goal_fat: number | null;
+};
+
 const Chatbot = () => {
   const { toast } = useToast();
   const { isRecording, isPlaying, isProcessing, startRecording, stopRecording, playText, stopPlaying } = useSpeech();
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -39,6 +49,20 @@ const Chatbot = () => {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
+      
+      // Fetch user profile if authenticated
+      if (user) {
+        supabase
+          .from('profiles')
+          .select('dietary_preferences, goals, goal_calories, goal_protein, goal_carbs, goal_fat')
+          .eq('id', user.id)
+          .single()
+          .then(({ data, error }) => {
+            if (!error && data) {
+              setUserProfile(data);
+            }
+          });
+      }
     });
   }, []);
   
@@ -313,41 +337,53 @@ const Chatbot = () => {
           <div className="hidden lg:block space-y-4">
             <Card className="p-6 shadow-md">
               <h3 className="font-semibold text-lg mb-4 text-foreground">Your Preferences</h3>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Dietary Restrictions</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">Vegetarian</Badge>
-                    <Badge variant="secondary">Nut Allergy</Badge>
-                  </div>
+              {userProfile ? (
+                <div className="space-y-3">
+                  {userProfile.dietary_preferences && userProfile.dietary_preferences.length > 0 && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Dietary Restrictions</p>
+                      <div className="flex flex-wrap gap-2">
+                        {userProfile.dietary_preferences.map((pref, index) => (
+                          <Badge key={index} variant="secondary">{pref}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {(userProfile.goal_calories || userProfile.goals || userProfile.goal_protein) && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Goals</p>
+                      <div className="flex flex-wrap gap-2">
+                        {userProfile.goal_calories && (
+                          <Badge className="bg-accent text-accent-foreground">
+                            {userProfile.goal_calories} cal/day
+                          </Badge>
+                        )}
+                        {userProfile.goal_protein && (
+                          <Badge className="bg-accent text-accent-foreground">
+                            {userProfile.goal_protein}g protein
+                          </Badge>
+                        )}
+                        {userProfile.goals && (
+                          <Badge className="bg-accent text-accent-foreground">
+                            {userProfile.goals}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {(!userProfile.dietary_preferences || userProfile.dietary_preferences.length === 0) && 
+                   !userProfile.goal_calories && 
+                   !userProfile.goals && (
+                    <p className="text-sm text-muted-foreground">
+                      No preferences set yet. Complete your profile to get personalized recommendations!
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Goals</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge className="bg-accent text-accent-foreground">2000 cal/day</Badge>
-                    <Badge className="bg-accent text-accent-foreground">High Protein</Badge>
-                  </div>
-                </div>
-              </div>
-            </Card>
-            
-            <Card className="p-6 shadow-md">
-              <h3 className="font-semibold text-lg mb-4 text-foreground">Quick Actions</h3>
-              <div className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
-                  Clear conversation
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  View meal history
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => playAudio("Testing ElevenLabs text to speech functionality.", "test")}
-                >
-                  Test TTS
-                </Button>
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Loading preferences...</p>
+              )}
             </Card>
           </div>
         </div>
