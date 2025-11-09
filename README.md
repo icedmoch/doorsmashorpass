@@ -2,7 +2,7 @@
 
 **HackUMass XIII Submission**
 
-A campus food delivery platform that connects students with student couriers while providing AI-powered nutrition coaching and real-time meal tracking.
+A campus food delivery platform that connects students with student couriers while providing AI-powered nutrition coaching.
 
 ## 💡 Inspiration
 
