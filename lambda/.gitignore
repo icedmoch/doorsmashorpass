@@ -1,0 +1,16 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Lambda deployment artifacts
+package/
+lambda-deployment.zip
+response.json
+
+# Environment variables
+.env
+
+# Test outputs
+debug_*.json
+*.log

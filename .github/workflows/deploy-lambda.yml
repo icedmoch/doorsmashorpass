@@ -1,0 +1,96 @@
+name: Deploy Menu Scraper Lambda
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lambda/**'
+      - '.github/workflows/deploy-lambda.yml'
+  workflow_dispatch:  # Manual trigger
+
+env:
+  AWS_REGION: us-east-1
+  STACK_NAME: umass-dining-menu-scraper
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build and push Docker image
+        run: |
+          cd lambda
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin 904233117895.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          REPO_NAME="umass-dining-scraper"
+          aws ecr describe-repositories --repository-names $REPO_NAME 2>/dev/null || aws ecr create-repository --repository-name $REPO_NAME
+          IMAGE_URI="904233117895.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPO_NAME:latest"
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --template-file lambda/cloudformation.yaml \
+            --stack-name ${{ env.STACK_NAME }} \
+            --parameter-overrides \
+              SupabaseUrl=${{ secrets.SUPABASE_URL }} \
+              SupabaseKey=${{ secrets.SUPABASE_KEY }} \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Get Lambda function name
+        id: get-function
+        run: |
+          FUNCTION_NAME=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`LambdaFunctionName`].OutputValue' \
+            --output text)
+          echo "function_name=$FUNCTION_NAME" >> $GITHUB_OUTPUT
+
+      - name: Update Lambda function
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ steps.get-function.outputs.function_name }} \
+            --image-uri ${{ env.IMAGE_URI }} \
+            --publish
+
+      - name: Wait for Lambda update
+        run: |
+          aws lambda wait function-updated \
+            --function-name ${{ steps.get-function.outputs.function_name }}
+
+      - name: Test Lambda function
+        run: |
+          aws lambda invoke \
+            --function-name ${{ steps.get-function.outputs.function_name }} \
+            --cli-binary-format raw-in-base64-out \
+            --payload '{}' \
+            response.json
+          echo "Lambda Response:"
+          cat response.json
+
+      - name: Deployment Summary
+        run: |
+          echo "✅ Deployment completed successfully!"
+          echo "Stack Name: ${{ env.STACK_NAME }}"
+          echo "Function Name: ${{ steps.get-function.outputs.function_name }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+          echo "Schedule: Every Saturday at 11:00 AM EST"
