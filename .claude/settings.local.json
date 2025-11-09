@@ -10,7 +10,15 @@
       "Bash(pip install:*)",
       "Bash(.venvScriptsactivate)",
       "Bash(timeout /t 3)",
-      "mcp__supabase__get_anon_key"
+      "mcp__supabase__get_anon_key",
+      "Bash(C:UsersriddhdoorsmashorpassFIXES_APPLIED.md)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(..venvScriptsactivate)",
+      "Bash(timeout /t 2)",
+      "Bash(timeout /t 5)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

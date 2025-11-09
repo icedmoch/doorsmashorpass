@@ -5,6 +5,16 @@ Tests all nutrition features through the chatbot API to ensure proper integratio
 import requests
 import json
 from datetime import datetime
+import sys
+
+# Helper to safely print text with emojis on Windows
+def safe_print(text):
+    """Print text safely, handling Unicode encoding issues on Windows"""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # Remove non-ASCII characters if encoding fails
+        print(text.encode('ascii', 'ignore').decode('ascii'))
 
 # Configuration
 CHATBOT_API_URL = "http://localhost:8002"
@@ -25,7 +35,7 @@ def print_test_header(test_name):
 
 def print_result(success, message):
     """Print a formatted test result"""
-    status = "✅ PASS" if success else "❌ FAIL"
+    status = "PASS" if success else "FAIL"
     print(f"{status} - {message}")
 
 def send_chatbot_message(message, user_location=None):
@@ -93,7 +103,7 @@ def test_search_nutrition_food_items():
         response_text = result["response"].lower()
         has_items = "found" in response_text or "item" in response_text
         print_result(has_items, f"Search with date filter")
-        print(f"   Response preview: {result['response'][:200]}...")
+        safe_print(f"   Response preview: {result['response'][:200]}...")
     else:
         print_result(False, f"Search failed: {result.get('error', 'Unknown error')}")
 
@@ -105,7 +115,7 @@ def test_search_nutrition_food_items():
         response_text = result["response"].lower()
         has_burger = "burger" in response_text or "big mack" in response_text
         print_result(has_burger, "Search for specific food")
-        print(f"   Response preview: {result['response'][:200]}...")
+        safe_print(f"   Response preview: {result['response'][:200]}...")
     else:
         print_result(False, f"Search failed: {result.get('error', 'Unknown error')}")
 
@@ -121,7 +131,7 @@ def test_log_meal():
         logged = "logged" in response_text or "success" in response_text
         has_calories = "calor" in response_text
         print_result(logged and has_calories, "Meal logged successfully")
-        print(f"   Response: {result['response'][:300]}...")
+        safe_print(f"   Response: {result['response'][:300]}...")
     else:
         print_result(False, f"Log meal failed: {result.get('error', 'Unknown error')}")
 
@@ -138,7 +148,7 @@ def test_daily_nutrition_totals():
         has_protein = "protein" in response_text
         has_macros = has_calories and has_protein
         print_result(has_macros, "Daily totals retrieved")
-        print(f"   Response: {result['response'][:300]}...")
+        safe_print(f"   Response: {result['response'][:300]}...")
     else:
         print_result(False, f"Get totals failed: {result.get('error', 'Unknown error')}")
 
@@ -153,7 +163,7 @@ def test_meal_history():
         response_text = result["response"].lower()
         has_history = "history" in response_text or "meal" in response_text or "day" in response_text
         print_result(has_history, "Meal history retrieved")
-        print(f"   Response: {result['response'][:300]}...")
+        safe_print(f"   Response: {result['response'][:300]}...")
     else:
         print_result(False, f"Get history failed: {result.get('error', 'Unknown error')}")
 
@@ -168,7 +178,7 @@ def test_nutrition_profile():
         response_text = result["response"].lower()
         has_profile = "profile" in response_text or "bmr" in response_text or "tdee" in response_text
         print_result(has_profile, "Nutrition profile retrieved")
-        print(f"   Response: {result['response'][:300]}...")
+        safe_print(f"   Response: {result['response'][:300]}...")
     else:
         print_result(False, f"Get profile failed: {result.get('error', 'Unknown error')}")
 
@@ -184,7 +194,7 @@ def test_update_profile():
         updated = "updated" in response_text or "success" in response_text
         has_metrics = "bmr" in response_text or "tdee" in response_text
         print_result(updated and has_metrics, "Profile updated with recalculated metrics")
-        print(f"   Response: {result['response'][:300]}...")
+        safe_print(f"   Response: {result['response'][:300]}...")
     else:
         print_result(False, f"Update profile failed: {result.get('error', 'Unknown error')}")
 
@@ -200,7 +210,7 @@ def test_order_search():
         has_items = "found" in response_text or "item" in response_text
         has_nutrition = "cal" in response_text or "protein" in response_text
         print_result(has_items and has_nutrition, "Order menu search with nutrition info")
-        print(f"   Response preview: {result['response'][:200]}...")
+        safe_print(f"   Response preview: {result['response'][:200]}...")
     else:
         print_result(False, f"Order search failed: {result.get('error', 'Unknown error')}")
 
@@ -222,7 +232,7 @@ def test_create_order_with_location():
         # Chatbot should ask follow-up questions or create the order
         is_processing = any(word in response_text for word in ["order", "deliver", "location", "confirm"])
         print_result(is_processing, "Order processing initiated")
-        print(f"   Response: {result['response'][:300]}...")
+        safe_print(f"   Response: {result['response'][:300]}...")
     else:
         print_result(False, f"Create order failed: {result.get('error', 'Unknown error')}")
 
@@ -261,7 +271,7 @@ def test_error_handling():
         response_text = result["response"].lower()
         has_error_message = "error" in response_text or "not found" in response_text or "failed" in response_text
         print_result(has_error_message, "Graceful error handling for invalid ID")
-        print(f"   Response: {result['response'][:200]}...")
+        safe_print(f"   Response: {result['response'][:200]}...")
     else:
         print_result(True, "API returned error as expected")
 
@@ -278,7 +288,7 @@ def run_all_tests():
 
     # Health check first
     if not check_api_health():
-        print("\n❌ CRITICAL: APIs are not running. Please start them first:")
+        print("\nCRITICAL: APIs are not running. Please start them first:")
         print("   Terminal 1: cd backend && python main.py")
         print("   Terminal 2: cd backend && python chatbot_api.py")
         return
@@ -301,7 +311,7 @@ def run_all_tests():
         try:
             test()
         except Exception as e:
-            print(f"\n❌ TEST FAILED WITH EXCEPTION: {str(e)}")
+            print(f"\nTEST FAILED WITH EXCEPTION: {str(e)}")
             import traceback
             traceback.print_exc()
 
@@ -309,8 +319,8 @@ def run_all_tests():
     print("\n" + "="*80)
     print("  TEST SUITE COMPLETE")
     print("="*80)
-    print("\n✅ All tests executed. Review results above for any failures.")
-    print("\n📝 Next Steps:")
+    print("\nAll tests executed. Review results above for any failures.")
+    print("\nNext Steps:")
     print("   1. Fix any failing tests")
     print("   2. Test frontend integration")
     print("   3. Deploy to production")

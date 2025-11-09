@@ -13,8 +13,8 @@ class UserProfileBase(BaseModel):
     """Base user profile fields"""
     age: int = Field(..., ge=13, le=120, description="User age in years")
     sex: str = Field(..., description="Sex: Male, Female, or Other")
-    height_cm: float = Field(..., ge=100, le=250, description="Height in centimeters")
-    weight_kg: float = Field(..., ge=30, le=300, description="Weight in kilograms")
+    height_cm: float = Field(..., ge=50, le=300, description="Height in centimeters")
+    weight_kg: float = Field(..., ge=30, le=500, description="Weight in kilograms")
     activity_level: int = Field(..., ge=1, le=5, description="Activity level: 1=sedentary, 2=light, 3=moderate, 4=active, 5=very_active")
 
 
@@ -28,8 +28,8 @@ class UserProfileUpdate(BaseModel):
     """Update user profile request (all fields optional)"""
     age: Optional[int] = Field(None, ge=13, le=120)
     sex: Optional[str] = None
-    height_cm: Optional[float] = Field(None, ge=100, le=250)
-    weight_kg: Optional[float] = Field(None, ge=30, le=300)
+    height_cm: Optional[float] = Field(None, ge=50, le=300)
+    weight_kg: Optional[float] = Field(None, ge=30, le=500)
     activity_level: Optional[int] = Field(None, ge=1, le=5)
     email: Optional[str] = None
     full_name: Optional[str] = None

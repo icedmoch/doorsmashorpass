@@ -36,10 +36,10 @@ ORDERS_API_BASE = os.getenv("ORDERS_API_BASE", "http://localhost:8000")
 async def lifespan(app: FastAPI):
     # Startup - Set Google API key for Gemini
     os.environ.setdefault("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
-    print("✅ Chatbot API startup: Google API key configured")
+    print("Chatbot API startup: Google API key configured")
     yield
     # Shutdown - Cleanup if needed
-    print("👋 Chatbot API shutdown")
+    print("Chatbot API shutdown")
 
 app = FastAPI(title="DoorSmash AI Chatbot API", lifespan=lifespan)
 
@@ -302,7 +302,7 @@ async def search_food_items(
 
         # Check if the date is a weekend (Saturday or Sunday)
         if is_weekend(date):
-            return "Grab N Go is closed for the weekend 😔\n\nDining halls are closed on Saturdays and Sundays. Please check weekday menus (Monday-Friday)."
+            return "Grab N Go is closed for the weekend.\n\nDining halls are closed on Saturdays and Sundays. Please check weekday menus (Monday-Friday)."
 
         # Build query
         query = supabase.table("food_items").select("*")
@@ -327,14 +327,14 @@ async def search_food_items(
             return f"No food items found{date_msg}. Try different search criteria or check if menus are available for this date.{suggestions}"
 
         # Format results
-        result_lines = [f"🍽️ Found {len(response.data)} items{' for ' + date if date else ''}:\n"]
+        result_lines = [f"Found {len(response.data)} items{' for ' + date if date else ''}:\n"]
 
         for i, item in enumerate(response.data, 1):
             result_lines.append(
                 f"{i}. **{item['name']}** (ID: {item['id']})\n"
-                f"   📍 {item.get('location', 'Unknown')} - {item.get('meal_type', 'N/A')}\n"
-                f"   🔥 {item['calories']} cal | 💪 {item['protein']}g protein | "
-                f"🍚 {item['total_carb']}g carbs | 🥑 {item['total_fat']}g fat"
+                f"   Location: {item.get('location', 'Unknown')} - {item.get('meal_type', 'N/A')}\n"
+                f"   {item['calories']} cal | {item['protein']}g protein | "
+                f"{item['total_carb']}g carbs | {item['total_fat']}g fat"
             )
 
         return "\n\n".join(result_lines)
@@ -475,36 +475,36 @@ async def create_order(
         ])
 
         # Add location coordinates if provided
-        location_details = f"📍 Delivery: {delivery_location}"
+        location_details = f"Delivery: {delivery_location}"
         if delivery_latitude and delivery_longitude:
-            location_details += f"\n🗺️ Coordinates: ({delivery_latitude}, {delivery_longitude})"
+            location_details += f"\nCoordinates: ({delivery_latitude}, {delivery_longitude})"
 
         # Add delivery option if not default
         delivery_info = ""
         if delivery_option and delivery_option != "delivery":
-            delivery_info = f"\n🚗 Option: {delivery_option.capitalize()}"
+            delivery_info = f"\nOption: {delivery_option.capitalize()}"
 
         # Add special instructions if provided
         special_notes = ""
         if special_instructions:
-            special_notes = f"\n📝 Special Instructions: {special_instructions}"
+            special_notes = f"\nSpecial Instructions: {special_instructions}"
 
-        return f"""✅ Order created successfully!
+        return f"""Order created successfully!
 
-📦 Order ID: {order_id}
+Order ID: {order_id}
 {location_details}{delivery_info}
-⏰ Status: pending{special_notes}
+Status: pending{special_notes}
 
-🍽️ Items:
+Items:
 {items_list}
 
-📊 Nutritional Totals:
+Nutritional Totals:
 - Calories: {total_cals} kcal
 - Protein: {total_protein:.1f}g
 - Carbs: {total_carbs:.1f}g
 - Fat: {total_fat:.1f}g
 
-Your order is being prepared! 🎉"""
+Your order is being prepared!"""
 
     except Exception as e:
         return f"Error creating order: {str(e)}"
@@ -691,19 +691,19 @@ async def log_meal_to_nutrition(
         )
         if response.status_code == 201:
             meal = response.json()
-            food = meal.get('food_item', {})
-            total_cals = food.get('calories', 0) * servings
-            total_protein = food.get('protein', 0) * servings
-            total_carbs = food.get('total_carb', 0) * servings
-            total_fat = food.get('total_fat', 0) * servings
+            # MealEntryResponse has food details at top level, not nested
+            total_cals = (meal.get('calories', 0) or 0) * servings
+            total_protein = (meal.get('protein', 0) or 0) * servings
+            total_carbs = (meal.get('total_carb', 0) or 0) * servings
+            total_fat = (meal.get('total_fat', 0) or 0) * servings
 
-            return f"""✅ Meal logged successfully!
+            return f"""Meal logged successfully!
 
-📝 Entry: {food.get('name', 'Unknown')}
-🍽️ Servings: {servings}
-📅 Category: {meal_category}
+Entry: {meal.get('food_name', 'Unknown')}
+Servings: {servings}
+Category: {meal_category}
 
-📊 Nutritional Impact:
+Nutritional Impact:
 - Calories: {total_cals:.0f} kcal
 - Protein: {total_protein:.1f}g
 - Carbs: {total_carbs:.1f}g
@@ -807,32 +807,38 @@ async def get_user_nutrition_profile(ctx: RunContext[ChatbotDeps]) -> str:
         if response.status_code == 200:
             profile = response.json()
 
-            result = f"""👤 Nutrition Profile:
+            # Convert cm to inches and kg to lbs for display
+            height_cm = profile.get('height_cm')
+            weight_kg = profile.get('weight_kg')
+            height_display = f"{height_cm / 2.54:.1f} inches ({height_cm:.1f} cm)" if height_cm else "Not set"
+            weight_display = f"{weight_kg * 2.20462:.1f} lbs ({weight_kg:.1f} kg)" if weight_kg else "Not set"
 
-📋 Basic Info:
+            result = f"""Nutrition Profile:
+
+Basic Info:
 - Name: {profile.get('full_name', 'Not set')}
 - Age: {profile.get('age', 'Not set')}
 - Sex: {profile.get('sex', 'Not set')}
-- Height: {profile.get('height_inches', 'Not set')} inches
-- Weight: {profile.get('weight_lbs', 'Not set')} lbs
+- Height: {height_display}
+- Weight: {weight_display}
 
-📊 Metabolic Rates:
+Metabolic Rates:
 - BMR: {profile.get('bmr', 'Not calculated')} cal/day
 - TDEE: {profile.get('tdee', 'Not calculated')} cal/day
 - Activity Level: {profile.get('activity_level', 'Not set')}/5
 
-🎯 Daily Goals:
+Daily Goals:
 - Calories: {profile.get('goal_calories', 'Not set')} kcal
 - Protein: {profile.get('goal_protein', 'Not set')}g
 - Carbs: {profile.get('goal_carbs', 'Not set')}g
 - Fat: {profile.get('goal_fat', 'Not set')}g
 
-🥗 Dietary Preferences: {', '.join(profile.get('dietary_preferences', [])) or 'None set'}
-📝 Goals: {profile.get('goals', 'Not set')}"""
+Dietary Preferences: {', '.join(profile.get('dietary_preferences', [])) or 'None set'}
+Goals: {profile.get('goals', 'Not set')}"""
 
             return result
         elif response.status_code == 404:
-            return "❌ No nutrition profile found. User needs to complete onboarding."
+            return "No nutrition profile found. User needs to complete onboarding."
         else:
             return f"Error fetching profile: {response.status_code}"
     except Exception as e:
@@ -869,9 +875,11 @@ async def update_nutrition_profile(
         if sex is not None:
             update_data["sex"] = sex
         if height_inches is not None:
-            update_data["height_inches"] = height_inches
+            # Convert inches to cm for API
+            update_data["height_cm"] = height_inches * 2.54
         if weight_lbs is not None:
-            update_data["weight_lbs"] = weight_lbs
+            # Convert lbs to kg for API
+            update_data["weight_kg"] = weight_lbs / 2.20462
         if activity_level is not None:
             update_data["activity_level"] = activity_level
         if goals is not None:
@@ -889,7 +897,7 @@ async def update_nutrition_profile(
         )
         if response.status_code == 200:
             profile = response.json()
-            return f"""✅ Profile updated successfully!
+            return f"""Profile updated successfully!
 
 Updated metrics:
 - BMR: {profile.get('bmr', 'N/A')} cal/day
