@@ -82,6 +82,8 @@ const OrderHistory = () => {
     
     initAuth();
 
+    // PAYMENT DISABLED - Payment verification commented out
+    /*
     // Check for payment success in URL
     const orderId = searchParams.get('order');
     const paymentStatus = searchParams.get('payment');
@@ -94,6 +96,7 @@ const OrderHistory = () => {
       // Show payment dialog
       handleShowPaymentDialog(orderId);
     }
+    */
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -108,6 +111,92 @@ const OrderHistory = () => {
 
     return () => subscription.unsubscribe();
   }, [searchParams]);
+
+  // Add realtime subscription for order updates
+  useEffect(() => {
+    if (!user) return;
+
+    // Subscribe to changes in orders table for user's orders
+    const ordersChannel = supabase
+      .channel('user-orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Order update received:', payload);
+          // Refresh orders when any change occurs
+          fetchOrders(user.id);
+          
+          // Show toast notification for status changes
+          if (payload.eventType === 'UPDATE') {
+            const newStatus = (payload.new as any).status;
+            const oldStatus = (payload.old as any)?.status;
+            
+            if (newStatus !== oldStatus) {
+              toast({
+                title: "Order Status Updated",
+                description: `Your order is now: ${getStatusLabel(newStatus)}`,
+              });
+            }
+            
+            // Notify when deliverer claims the order
+            if ((payload.new as any).deliverer_id && !(payload.old as any)?.deliverer_id) {
+              toast({
+                title: "Deliverer Assigned!",
+                description: "Your order has been picked up by a deliverer.", // PAYMENT DISABLED - Removed payment mention
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to available deliveries changes
+    const availableChannel = supabase
+      .channel('available-deliveries-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+        },
+        () => {
+          console.log('Available deliveries updated');
+          fetchAvailableDeliveries(user.id);
+        }
+      )
+      .subscribe();
+
+    // Subscribe to my deliveries changes
+    const myDeliveriesChannel = supabase
+      .channel('my-deliveries-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `deliverer_id=eq.${user.id}`,
+        },
+        () => {
+          console.log('My deliveries updated');
+          fetchMyDeliveries(user.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      ordersChannel.unsubscribe();
+      availableChannel.unsubscribe();
+      myDeliveriesChannel.unsubscribe();
+    };
+  }, [user]);
 
   const fetchOrders = async (userId: string) => {
     try {
@@ -287,6 +376,8 @@ const OrderHistory = () => {
     }
   };
 
+  // PAYMENT DISABLED - Payment verification function commented out
+  /*
   const verifyPayment = async (orderId: string) => {
     if (!user) return;
 
@@ -322,14 +413,27 @@ const OrderHistory = () => {
       });
     }
   };
+  */
 
   const handleMarkAsDelivered = async (orderId: string) => {
     if (!user) return;
 
     try {
+      // PAYMENT DISABLED - Just update order status to delivered
+      // No payout processing needed since payment is disabled
+      /*
       const { error } = await supabase.functions.invoke('complete-delivery-payout', {
         body: { orderId },
       });
+
+      if (error) throw error;
+      */
+
+      // Directly update order status to delivered
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'delivered' })
+        .eq('id', orderId);
 
       if (error) throw error;
 
@@ -350,6 +454,8 @@ const OrderHistory = () => {
     }
   };
 
+  // PAYMENT DISABLED - Payment dialog and payment initiation functions commented out
+  /*
   const handleShowPaymentDialog = async (orderId: string) => {
     try {
       const { data: order, error } = await supabase
@@ -410,6 +516,7 @@ const OrderHistory = () => {
       setIsProcessingPayment(false);
     }
   };
+  */
 
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
@@ -605,7 +712,7 @@ const OrderHistory = () => {
           />
         )}
 
-        {/* Payment Dialog */}
+        {/* PAYMENT DISABLED - Payment Dialog commented out
         <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
           <DialogContent>
             <DialogHeader>
@@ -635,6 +742,7 @@ const OrderHistory = () => {
             </div>
           </DialogContent>
         </Dialog>
+        */}
       </div>
     </div>
   );
@@ -861,7 +969,8 @@ const OrderCard = ({
               <Button 
                 className="flex-1" 
                 onClick={() => onComplete(order.id as any)}
-                disabled={!order.stripe_payment_intent_id}
+                // PAYMENT DISABLED - Remove payment requirement
+                // disabled={!order.stripe_payment_intent_id}
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 Mark as Delivered
@@ -882,6 +991,7 @@ const OrderCard = ({
 
         {showCustomerActions && (
           <div className="space-y-2">
+            {/* PAYMENT DISABLED - Payment requirement notice removed
             {order.deliverer_id && !order.stripe_payment_intent_id && (
               <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                 <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400 mb-2">
@@ -908,13 +1018,25 @@ const OrderCard = ({
                 </div>
               </div>
             )}
-            {order.stripe_payment_intent_id && order.status !== 'delivered' && (
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <p className="text-sm font-medium text-green-600 dark:text-green-400 mb-2">
-                  Out for Delivery
+            */}
+            {/* Payment disabled - show order status when deliverer claims it */}
+            {order.deliverer_id && order.status !== 'delivered' && order.status !== 'cancelled' && (
+              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  {order.status === 'pending' ? 'Order Claimed - Pending Preparation' :
+                   order.status === 'preparing' ? 'In Progress - Being Prepared' : 
+                   order.status === 'ready' ? 'Ready for Pickup' : 
+                   'Out for Delivery'}
                 </p>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Your order is being delivered. Mark as delivered once you receive it.
+                  {order.status === 'pending'
+                    ? 'A deliverer has claimed your order and will begin preparation soon.'
+                    : order.status === 'preparing' 
+                    ? 'Your deliverer is preparing your order. You can mark it as delivered once you receive it.' 
+                    : order.status === 'ready'
+                    ? 'Your order is ready! Mark as delivered once you receive it.'
+                    : 'Your order is on its way. Mark as delivered once you receive it.'}
                 </p>
                 <Button 
                   className="w-full" 

@@ -128,16 +128,19 @@ const Nutrition = () => {
   const [selectedFoodItem, setSelectedFoodItem] = useState<FoodItem | null>(null);
   const [servings, setServings] = useState("1");
   const [mealCategory, setMealCategory] = useState("Lunch");
+  const [isManualEntry, setIsManualEntry] = useState(false);
 
-  // Form state for manual entry (legacy, kept for reference)
-  const [mealForm, setMealForm] = useState({
+  // Form state for manual entry
+  const [manualFoodForm, setManualFoodForm] = useState({
     name: "",
     calories: "",
     protein: "",
     carbs: "",
     fat: "",
-    servings: "1",
-    category: "Lunch",
+    serving_size: "",
+    sodium: "",
+    dietary_fiber: "",
+    sugars: "",
   });
 
   const fetchAvailableDates = useCallback(async () => {
@@ -187,24 +190,75 @@ const Nutrition = () => {
       // Fetch meal entries for selected date using API
       const mealsData = await nutritionApi.getMealsByDate(user.id, selectedDate);
       
+      // Also fetch meal_entry_items for manual entries
+      const { data: mealEntryItems } = await supabase
+        .from('meal_entry_items')
+        .select('*, meal_entry_id')
+        .order('created_at', { ascending: true });
+
+      // Create a map of meal_entry_id to meal_entry_items
+      const itemsMap = new Map<number, Array<{
+        id: string;
+        meal_entry_id: number;
+        food_item_name: string;
+        quantity: number;
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+        dining_hall: string | null;
+      }>>();
+      if (mealEntryItems) {
+        mealEntryItems.forEach(item => {
+          if (!itemsMap.has(item.meal_entry_id)) {
+            itemsMap.set(item.meal_entry_id, []);
+          }
+          itemsMap.get(item.meal_entry_id)?.push(item);
+        });
+      }
+      
       // Convert the grouped meals back to a flat array with food_item details
       const allMeals: MealEntry[] = [];
       for (const category of ['Breakfast', 'Lunch', 'Dinner']) {
         const categoryMeals = mealsData[category as keyof typeof mealsData] || [];
         categoryMeals.forEach(meal => {
-          allMeals.push({
-            ...meal,
-            food_item: {
-              id: meal.food_item_id,
-              name: meal.food_name || '',
-              calories: meal.calories || 0,
-              protein: meal.protein || 0,
-              total_carb: meal.total_carb || 0,
-              total_fat: meal.total_fat || 0,
-              serving_size: meal.serving_size || '',
-              location: meal.location,
-            }
-          });
+          // Check if this meal has custom entry items
+          const customItems = itemsMap.get(meal.id);
+          
+          if (customItems && customItems.length > 0) {
+            // This is a manual entry - use meal_entry_items data
+            customItems.forEach(item => {
+              allMeals.push({
+                ...meal,
+                food_item: {
+                  id: meal.food_item_id,
+                  name: item.food_item_name,
+                  calories: item.calories / item.quantity, // Per serving
+                  protein: item.protein / item.quantity,
+                  total_carb: item.carbs / item.quantity,
+                  total_fat: item.fat / item.quantity,
+                  serving_size: '1 serving',
+                  location: item.dining_hall || 'Custom Entry',
+                },
+                servings: item.quantity, // Use quantity as servings
+              });
+            });
+          } else {
+            // Regular food item from database
+            allMeals.push({
+              ...meal,
+              food_item: {
+                id: meal.food_item_id,
+                name: meal.food_name || '',
+                calories: meal.calories || 0,
+                protein: meal.protein || 0,
+                total_carb: meal.total_carb || 0,
+                total_fat: meal.total_fat || 0,
+                serving_size: meal.serving_size || '',
+                location: meal.location,
+              }
+            });
+          }
         });
       }
       
@@ -352,33 +406,138 @@ const Nutrition = () => {
   // Add the selected meal to user's log
   const handleAddMeal = async () => {
     try {
-      if (!selectedFoodItem) {
-        toast({
-          title: "No food selected",
-          description: "Please search and select a food item first",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      // Create meal entry using the selected entry date
-      await nutritionApi.createMealEntry({
-        profile_id: user.id,
-        food_item_id: selectedFoodItem.id,
-        meal_category: mealCategory,
-        servings: parseFloat(servings),
-        entry_date: selectedEntryDate,
-      });
+      if (isManualEntry) {
+        // Validate required fields for manual entry
+        if (!manualFoodForm.name || !manualFoodForm.calories || !manualFoodForm.protein || 
+            !manualFoodForm.carbs || !manualFoodForm.fat) {
+          toast({
+            title: "Missing required fields",
+            description: "Please fill in all required fields (name, calories, protein, carbs, and fat)",
+            variant: "destructive",
+          });
+          return;
+        }
 
-      toast({
-        title: "Meal added!",
-        description: `${selectedFoodItem.name} has been added to your nutrition log for ${selectedEntryDate}.`,
-      });
+        // For manual entries, we need to use the nutrition API which creates a meal_entry
+        // Then we'll add a meal_entry_item with the custom nutrition data
+        
+        // First, get or create a generic placeholder food item for manual entries
+        let placeholderFoodId;
+        const { data: existingPlaceholder } = await supabase
+          .from('food_items')
+          .select('id')
+          .eq('name', '__MANUAL_ENTRY_PLACEHOLDER__')
+          .eq('location', 'System')
+          .single();
+
+        if (existingPlaceholder) {
+          placeholderFoodId = existingPlaceholder.id;
+        } else {
+          // Create the placeholder food item once
+          const { data: newPlaceholder, error: placeholderError } = await supabase
+            .from('food_items')
+            .insert({
+              name: '__MANUAL_ENTRY_PLACEHOLDER__',
+              serving_size: '1 serving',
+              calories: 0,
+              total_fat: 0,
+              sodium: 0,
+              total_carb: 0,
+              dietary_fiber: 0,
+              sugars: 0,
+              protein: 0,
+              location: 'System',
+            })
+            .select()
+            .single();
+
+          if (placeholderError) throw placeholderError;
+          placeholderFoodId = newPlaceholder.id;
+        }
+
+        // Create the meal entry using the placeholder
+        const { data: mealEntryData, error: mealEntryError } = await supabase
+          .from('meal_entries')
+          .insert({
+            profile_id: user.id,
+            food_item_id: placeholderFoodId,
+            entry_date: selectedEntryDate,
+            meal_category: mealCategory,
+            servings: 1, // Always 1 for manual entries, real servings calculated in meal_entry_items
+          })
+          .select()
+          .single();
+
+        if (mealEntryError) throw mealEntryError;
+
+        // Now add the actual custom nutrition data as a meal_entry_item
+        const totalCalories = parseInt(manualFoodForm.calories) * parseFloat(servings);
+        const totalProtein = parseFloat(manualFoodForm.protein) * parseFloat(servings);
+        const totalCarbs = parseFloat(manualFoodForm.carbs) * parseFloat(servings);
+        const totalFat = parseFloat(manualFoodForm.fat) * parseFloat(servings);
+
+        const { error: mealItemError } = await supabase
+          .from('meal_entry_items')
+          .insert({
+            meal_entry_id: mealEntryData.id,
+            food_item_name: manualFoodForm.name,
+            quantity: parseFloat(servings),
+            calories: totalCalories,
+            protein: totalProtein,
+            carbs: totalCarbs,
+            fat: totalFat,
+            dining_hall: "Custom Entry",
+          });
+
+        if (mealItemError) throw mealItemError;
+
+        toast({
+          title: "Custom meal added!",
+          description: `${manualFoodForm.name} has been added to your nutrition log for ${selectedEntryDate}.`,
+        });
+
+        // Reset manual form
+        setManualFoodForm({
+          name: "",
+          calories: "",
+          protein: "",
+          carbs: "",
+          fat: "",
+          serving_size: "",
+          sodium: "",
+          dietary_fiber: "",
+          sugars: "",
+        });
+      } else {
+        // Search-based entry
+        if (!selectedFoodItem) {
+          toast({
+            title: "No food selected",
+            description: "Please search and select a food item first",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Create meal entry using the selected entry date
+        await nutritionApi.createMealEntry({
+          profile_id: user.id,
+          food_item_id: selectedFoodItem.id,
+          meal_category: mealCategory,
+          servings: parseFloat(servings),
+          entry_date: selectedEntryDate,
+        });
+
+        toast({
+          title: "Meal added!",
+          description: `${selectedFoodItem.name} has been added to your nutrition log for ${selectedEntryDate}.`,
+        });
+      }
 
       // Reset form
       setAddMealDialog(false);
@@ -387,6 +546,7 @@ const Nutrition = () => {
       setSelectedFoodItem(null);
       setServings("1");
       setMealCategory("Lunch");
+      setIsManualEntry(false);
       
       // If adding to the current selected date, refresh
       if (selectedEntryDate === selectedDate) {
@@ -1079,13 +1239,15 @@ const Nutrition = () => {
 
       {/* Add Meal Dialog */}
       <Dialog open={addMealDialog} onOpenChange={setAddMealDialog}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>Add Meal</DialogTitle>
-            <DialogDescription>Search for a food item from the dining hall database</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col p-0">
+          <div className="px-6 pt-6">
+            <DialogHeader>
+              <DialogTitle>Add Meal</DialogTitle>
+              <DialogDescription>Search for a food item from the dining hall database</DialogDescription>
+            </DialogHeader>
+          </div>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 px-6 py-4 overflow-y-auto flex-1">
             {/* Date Selector for Entry */}
             <div className="space-y-2">
               <Label>Entry Date</Label>
@@ -1113,14 +1275,192 @@ const Nutrition = () => {
             </div>
 
             {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search for food items (e.g., chicken, salad, pizza)..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="pl-9"
-              />
+            <div className="space-y-3">
+              {/* Toggle between search and manual entry */}
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                <Button
+                  type="button"
+                  variant={!isManualEntry ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => {
+                    setIsManualEntry(false);
+                    setManualFoodForm({
+                      name: "",
+                      calories: "",
+                      protein: "",
+                      carbs: "",
+                      fat: "",
+                      serving_size: "",
+                      sodium: "",
+                      dietary_fiber: "",
+                      sugars: "",
+                    });
+                  }}
+                  className="flex-1"
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Search Database
+                </Button>
+                <Button
+                  type="button"
+                  variant={isManualEntry ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => {
+                    setIsManualEntry(true);
+                    setSearchQuery("");
+                    setSearchResults([]);
+                    setSelectedFoodItem(null);
+                  }}
+                  className="flex-1"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Manual Entry
+                </Button>
+              </div>
+
+              {!isManualEntry ? (
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search for food items (e.g., chicken, salad, pizza)..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-3 p-3 bg-background rounded-lg border">
+                  <p className="text-xs text-muted-foreground">
+                    Enter food details manually. Fields marked with * are required.
+                  </p>
+                  
+                  {/* Manual Food Entry Form */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2">
+                      <Label htmlFor="manual-name" className="text-xs">Food Name *</Label>
+                      <Input
+                        id="manual-name"
+                        value={manualFoodForm.name}
+                        onChange={(e) => setManualFoodForm({ ...manualFoodForm, name: e.target.value })}
+                        placeholder="e.g., Homemade Pasta"
+                        className="h-8 text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="manual-calories" className="text-xs">Calories *</Label>
+                      <Input
+                        id="manual-calories"
+                        type="number"
+                        min="0"
+                        value={manualFoodForm.calories}
+                        onChange={(e) => setManualFoodForm({ ...manualFoodForm, calories: e.target.value })}
+                        placeholder="e.g., 250"
+                        className="h-8 text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="manual-protein" className="text-xs">Protein (g) *</Label>
+                      <Input
+                        id="manual-protein"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={manualFoodForm.protein}
+                        onChange={(e) => setManualFoodForm({ ...manualFoodForm, protein: e.target.value })}
+                        placeholder="e.g., 12"
+                        className="h-8 text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="manual-carbs" className="text-xs">Carbs (g) *</Label>
+                      <Input
+                        id="manual-carbs"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={manualFoodForm.carbs}
+                        onChange={(e) => setManualFoodForm({ ...manualFoodForm, carbs: e.target.value })}
+                        placeholder="e.g., 45"
+                        className="h-8 text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="manual-fat" className="text-xs">Fat (g) *</Label>
+                      <Input
+                        id="manual-fat"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={manualFoodForm.fat}
+                        onChange={(e) => setManualFoodForm({ ...manualFoodForm, fat: e.target.value })}
+                        placeholder="e.g., 8"
+                        className="h-8 text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <Label htmlFor="manual-serving" className="text-xs">Serving Size</Label>
+                      <Input
+                        id="manual-serving"
+                        value={manualFoodForm.serving_size}
+                        onChange={(e) => setManualFoodForm({ ...manualFoodForm, serving_size: e.target.value })}
+                        placeholder="e.g., 1 cup, 100g"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="manual-sodium" className="text-xs">Sodium (mg)</Label>
+                      <Input
+                        id="manual-sodium"
+                        type="number"
+                        min="0"
+                        value={manualFoodForm.sodium}
+                        onChange={(e) => setManualFoodForm({ ...manualFoodForm, sodium: e.target.value })}
+                        placeholder="Optional"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="manual-fiber" className="text-xs">Dietary Fiber (g)</Label>
+                      <Input
+                        id="manual-fiber"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={manualFoodForm.dietary_fiber}
+                        onChange={(e) => setManualFoodForm({ ...manualFoodForm, dietary_fiber: e.target.value })}
+                        placeholder="Optional"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="manual-sugars" className="text-xs">Sugars (g)</Label>
+                      <Input
+                        id="manual-sugars"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={manualFoodForm.sugars}
+                        onChange={(e) => setManualFoodForm({ ...manualFoodForm, sugars: e.target.value })}
+                        placeholder="Optional"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Search Results */}
@@ -1273,14 +1613,22 @@ const Nutrition = () => {
             )}
           </div>
 
-          <DialogFooter>
+          {/* Action Buttons - Fixed at bottom */}
+          <div className="flex justify-end gap-2 px-6 py-4 border-t bg-background">
             <Button variant="outline" onClick={() => setAddMealDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddMeal} disabled={!selectedFoodItem}>
+            <Button 
+              onClick={handleAddMeal} 
+              disabled={
+                isManualEntry 
+                  ? !manualFoodForm.name || !manualFoodForm.calories || !manualFoodForm.protein || !manualFoodForm.carbs || !manualFoodForm.fat
+                  : !selectedFoodItem
+              }
+            >
               Add Meal
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
