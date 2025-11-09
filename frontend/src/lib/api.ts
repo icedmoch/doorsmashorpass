@@ -232,6 +232,8 @@ export interface Order {
   id: string;
   user_id: string;
   delivery_location: string;
+  delivery_latitude?: number;
+  delivery_longitude?: number;
   delivery_time?: string;
   special_instructions?: string;
   status: string;
@@ -262,6 +264,8 @@ export const ordersApi = {
   async createOrder(data: {
     user_id: string;
     delivery_location: string;
+    delivery_latitude?: number;
+    delivery_longitude?: number;
     delivery_time?: string;
     special_instructions?: string;
     items: OrderItem[];
@@ -298,6 +302,8 @@ export const ordersApi = {
 
   async updateOrder(orderId: string, data: {
     delivery_location?: string;
+    delivery_latitude?: number;
+    delivery_longitude?: number;
     delivery_time?: string;
     special_instructions?: string;
   }): Promise<Order> {

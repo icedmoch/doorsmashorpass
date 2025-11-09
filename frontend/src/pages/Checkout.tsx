@@ -89,23 +89,75 @@ const Checkout = () => {
       const order = await ordersApi.createOrder({
         user_id: user.id,
         delivery_location: deliveryLocation,
+        delivery_latitude: deliveryLat,
+        delivery_longitude: deliveryLng,
         delivery_time: deliveryTimestamp,
         special_instructions: notes || undefined,
         items: orderItems,
       });
 
-      // Store order ID in localStorage
-      localStorage.setItem('pendingOrderId', order.id);
+      console.log('✅ Order created successfully:', order.id);
 
+      // PAYMENT DISABLED FOR NOW - Payment requirement commented out
+      // Immediately initiate payment for $10 flat fee
+      /*
+      setIsProcessingPayment(true);
+      
+      try {
+        console.log('💳 Initiating payment for order:', order.id);
+        
+        const { data, error: paymentError } = await supabase.functions.invoke('create-payment', {
+          body: { 
+            orderId: order.id,
+            amount: 1000 // $10.00 in cents
+          },
+        });
+
+        if (paymentError) {
+          console.error('❌ Payment error:', paymentError);
+          throw paymentError;
+        }
+
+        if (data?.url) {
+          console.log('✅ Payment session created, redirecting to:', data.url);
+          // Store order ID
+          localStorage.setItem('pendingOrderId', order.id);
+          
+          toast({
+            title: "Order created!",
+            description: "Redirecting to payment...",
+          });
+
+          clearCart();
+          
+          // Redirect to Stripe payment page
+          window.location.href = data.url;
+        } else {
+          throw new Error('No payment URL returned');
+        }
+      } catch (paymentError) {
+        console.error('❌ Payment initiation failed:', paymentError);
+        // Order was created but payment failed - redirect to order history
+        toast({
+          title: "Order created",
+          description: "Please complete payment from your order history",
+        });
+
+        clearCart();
+        navigate(`/student/order-history?order=${order.id}&payment=pending`);
+      } finally {
+        setIsProcessingPayment(false);
+      }
+      */
+
+      // Skip payment for now - directly go to order history
       toast({
-        title: "Order created!",
-        description: "Redirecting to payment...",
+        title: "Order placed successfully!",
+        description: "Your order has been submitted",
       });
 
       clearCart();
-      
-      // Redirect to payment waiting page
-      navigate(`/student/order-history?order=${order.id}&payment=pending`);
+      navigate(`/student/order-history`);
     } catch (error) {
       console.error('Error placing order:', error);
       toast({

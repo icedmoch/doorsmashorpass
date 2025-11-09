@@ -77,6 +77,8 @@ class OrderItemResponse(BaseModel):
 class OrderCreate(BaseModel):
     user_id: str  # UUID as string
     delivery_location: str
+    delivery_latitude: Optional[float] = None
+    delivery_longitude: Optional[float] = None
     delivery_time: Optional[datetime] = None
     special_instructions: Optional[str] = None
     items: List[OrderItemCreate]
@@ -84,6 +86,8 @@ class OrderCreate(BaseModel):
 
 class OrderUpdate(BaseModel):
     delivery_location: Optional[str] = None
+    delivery_latitude: Optional[float] = None
+    delivery_longitude: Optional[float] = None
     delivery_time: Optional[datetime] = None
     special_instructions: Optional[str] = None
 
@@ -96,6 +100,8 @@ class OrderResponse(BaseModel):
     id: str
     user_id: str
     delivery_location: str
+    delivery_latitude: Optional[float] = None
+    delivery_longitude: Optional[float] = None
     delivery_time: Optional[datetime]
     special_instructions: Optional[str]
     status: str
@@ -118,12 +124,45 @@ async def get_food_item_details(food_item_id: int):
     return response.data[0]
 
 
-async def calculate_and_update_order_totals(order_id: str):
-    """Calculate and update order totals using the database function"""
+async def calculate_and_update_order_totals(order_id: str, client=None):
+    """Calculate and update order totals"""
     try:
-        supabase.rpc("calculate_order_totals", {"order_uuid": order_id}).execute()
+        # Use provided client or fall back to global supabase
+        db_client = client if client else supabase
+        print(f"🔧 Calculating totals for order {order_id} using {'authenticated' if client else 'global'} client")
+        
+        # Fetch all order items for this order
+        items_response = db_client.table("order_items").select("*").eq("order_id", order_id).execute()
+        
+        if not items_response.data:
+            print(f"⚠️  No items found for order {order_id}")
+            return
+        
+        # Calculate totals from items
+        total_calories = sum(item['calories'] * item['quantity'] for item in items_response.data)
+        total_protein = sum(float(item['protein']) * item['quantity'] for item in items_response.data)
+        total_carbs = sum(float(item['carbs']) * item['quantity'] for item in items_response.data)
+        total_fat = sum(float(item['fat']) * item['quantity'] for item in items_response.data)
+        
+        print(f"📊 Calculated: {total_calories} cal, {total_protein}g protein, {total_carbs}g carbs, {total_fat}g fat")
+        
+        # Update the order with calculated totals
+        update_response = db_client.table("orders").update({
+            "total_calories": int(total_calories),
+            "total_protein": float(total_protein),
+            "total_carbs": float(total_carbs),
+            "total_fat": float(total_fat)
+        }).eq("id", order_id).execute()
+        
+        if update_response.data:
+            print(f"✅ Order totals updated successfully")
+        else:
+            print(f"⚠️  Update response had no data")
+            
     except Exception as e:
-        print(f"Warning: Could not calculate order totals: {e}")
+        print(f"❌ Error calculating order totals for {order_id}: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 # ==================== API ENDPOINTS ====================
@@ -162,6 +201,8 @@ async def create_order(order: OrderCreate, authorization: Optional[str] = Header
     order_data = {
         "user_id": order.user_id,
         "delivery_location": order.delivery_location,
+        "delivery_latitude": order.delivery_latitude,
+        "delivery_longitude": order.delivery_longitude,
         "delivery_time": order.delivery_time.isoformat() if order.delivery_time else None,
         "special_instructions": order.special_instructions,
         "status": "pending"
@@ -180,27 +221,43 @@ async def create_order(order: OrderCreate, authorization: Optional[str] = Header
         # Get food item details
         food_item = await get_food_item_details(item.food_item_id)
 
-        # Create order item
+        # Create order item with proper nutritional values
         item_data = {
             "order_id": order_id,
             "food_item_id": item.food_item_id,
             "food_item_name": food_item["name"],
             "quantity": item.quantity,
-            "calories": food_item.get("calories"),
+            "calories": int(food_item.get("calories", 0)),
             "protein": float(food_item.get("protein", 0)),
             "carbs": float(food_item.get("total_carb", 0)),
-            "fat": float(food_item.get("total_fat", 0))
+            "fat": float(food_item.get("total_fat", 0)),
+            "dining_hall": food_item.get("location")
         }
+
+        print(f"Creating order item: {item_data}")  # Debug log
 
         item_response = client.table("order_items").insert(item_data).execute()
         if item_response.data:
             order_items.append(item_response.data[0])
 
-    # Calculate totals
-    await calculate_and_update_order_totals(order_id)
+    # Calculate totals using authenticated client
+    await calculate_and_update_order_totals(order_id, client)
 
-    # Fetch updated order with items
-    return await get_order(order_id)
+    # Fetch updated order with items using authenticated client
+    # Manually fetch since we can't use the endpoint directly with auth header
+    response = client.table("orders").select("*").eq("id", order_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Failed to fetch created order")
+    
+    order_data = response.data[0]
+    
+    # Fetch order items
+    items_response = client.table("order_items").select("*").eq("order_id", order_id).execute()
+    order_data["items"] = items_response.data
+    
+    print(f"📦 Returning order: {order_data}")
+    
+    return order_data
 
 
 @app.get("/orders", response_model=List[OrderResponse])
@@ -238,19 +295,22 @@ async def list_orders(
 
 
 @app.get("/orders/{order_id}", response_model=OrderResponse)
-async def get_order(order_id: str):
+async def get_order(order_id: str, authorization: Optional[str] = Header(None)):
     """
     Get a specific order by ID with all items
     """
+    # Get authenticated client if available
+    client = get_supabase_client(authorization) if authorization else supabase
+    
     # Fetch order
-    response = supabase.table("orders").select("*").eq("id", order_id).execute()
+    response = client.table("orders").select("*").eq("id", order_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
 
     order_data = response.data[0]
 
     # Fetch order items
-    items_response = supabase.table("order_items").select("*").eq("order_id", order_id).execute()
+    items_response = client.table("order_items").select("*").eq("order_id", order_id).execute()
     order_data["items"] = items_response.data
 
     return order_data
@@ -270,6 +330,10 @@ async def update_order(order_id: str, order_update: OrderUpdate):
     update_data = {}
     if order_update.delivery_location is not None:
         update_data["delivery_location"] = order_update.delivery_location
+    if order_update.delivery_latitude is not None:
+        update_data["delivery_latitude"] = order_update.delivery_latitude
+    if order_update.delivery_longitude is not None:
+        update_data["delivery_longitude"] = order_update.delivery_longitude
     if order_update.delivery_time is not None:
         update_data["delivery_time"] = order_update.delivery_time.isoformat()
     if order_update.special_instructions is not None:
