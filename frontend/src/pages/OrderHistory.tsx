@@ -202,8 +202,8 @@ const OrderHistory = () => {
     try {
       setIsLoading(true);
 
-      // Fetch orders using API
-      const ordersData = await ordersApi.getUserOrders(userId);
+      // Fetch orders using API, including all non-final statuses
+      const ordersData = await ordersApi.getUserOrders(userId, 'pending,preparing,ready,out_for_delivery,delivered,cancelled');
 
       setOrders(ordersData);
 
