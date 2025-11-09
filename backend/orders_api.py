@@ -278,7 +278,12 @@ async def list_orders(
     if user_id:
         query = query.eq("user_id", user_id)
     if status:
-        query = query.eq("status", status)
+        # Handle multiple statuses
+        if "," in status:
+            status_list = [s.strip() for s in status.split(",")]
+            query = query.in_("status", status_list)
+        else:
+            query = query.eq("status", status)
 
     query = query.order("created_at", desc=True).limit(limit)
 
