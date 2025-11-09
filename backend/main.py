@@ -8,11 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
 
+load_dotenv()
+
 # Import the individual API apps
 from orders_api import app as orders_app
 from nutrition_api import app as nutrition_app
-
-load_dotenv()
 
 # Create main app
 app = FastAPI(
@@ -39,7 +39,7 @@ async def root():
         "services": {
             "orders": {
                 "description": "Food ordering and delivery management",
-                "endpoints": "/orders"
+                "endpoints": ["/orders", "/users/{user_id}/orders"]
             },
             "nutrition": {
                 "description": "Nutrition tracking and meal logging",
@@ -62,12 +62,17 @@ async def health_check():
     }
 
 
-# Mount the sub-applications
-# Orders API - keep existing endpoints at root level
-app.mount("/orders", orders_app)
+# Manually add all routes from both apps to avoid mount() issues
+# This preserves the original route handlers with all dependencies intact
+for route in orders_app.routes:
+    # Skip the root endpoint as we already have one
+    if hasattr(route, 'path') and route.path != "/":
+        app.routes.append(route)
 
-# Nutrition API - already has /api/nutrition prefix in its routes
-app.mount("", nutrition_app)
+for route in nutrition_app.routes:
+    # Skip the root and health endpoints
+    if hasattr(route, 'path') and route.path not in ["/", "/health"]:
+        app.routes.append(route)
 
 
 if __name__ == "__main__":

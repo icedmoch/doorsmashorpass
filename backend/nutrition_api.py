@@ -55,18 +55,19 @@ nutrition_db = NutritionDatabase(supabase)
 
 # ==================== ROOT ====================
 
-@app.get("/")
-async def root():
-    return {
-        "message": "StudentEats Nutrition API",
-        "version": "1.0.0",
-        "endpoints": {
-            "profiles": "/api/nutrition/profiles",
-            "food_items": "/api/nutrition/food-items",
-            "meals": "/api/nutrition/meals",
-            "docs": "/docs"
-        }
-    }
+# Root endpoint commented out - handled by main.py
+# @app.get("/")
+# async def root():
+#     return {
+#         "message": "StudentEats Nutrition API",
+#         "version": "1.0.0",
+#         "endpoints": {
+#             "profiles": "/api/nutrition/profiles",
+#             "food_items": "/api/nutrition/food-items",
+#             "meals": "/api/nutrition/meals",
+#             "docs": "/docs"
+#         }
+#     }
 
 
 @app.get("/health")

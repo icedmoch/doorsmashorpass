@@ -3,6 +3,8 @@
  * Centralized API calls to the backend
  */
 
+import { supabase } from '@/integrations/supabase/client';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // ==================== HELPER FUNCTIONS ====================
@@ -19,13 +21,24 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  // Get the current user's session token
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   const url = `${API_BASE_URL}${endpoint}`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...options.headers as Record<string, string>,
+  };
+
+  // Add authorization header if token exists
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
   return handleResponse<T>(response);
 }
