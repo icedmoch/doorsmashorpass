@@ -32,9 +32,14 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 NUTRITION_API_BASE = os.getenv("NUTRITION_API_BASE", "http://localhost:8000")
 ORDERS_API_BASE = os.getenv("ORDERS_API_BASE", "http://localhost:8000")
 
+<<<<<<< HEAD
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+=======
+@app.on_event("startup")
+async def startup():
+>>>>>>> dbda1f1fece40435be928702eaaaedc169b10ca1
     os.environ.setdefault("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
     yield
     # Shutdown (if needed)
