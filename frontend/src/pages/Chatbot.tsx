@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,9 @@ import { Send, Mic, Volume2, VolumeX, MicOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { useSpeech } from "@/hooks/useSpeech";
+import { supabase } from "@/integrations/supabase/client";
+import { chatbotApi } from "@/lib/api";
+import { User } from "@supabase/supabase-js";
 
 type Message = {
   id: string;
@@ -19,6 +22,7 @@ type Message = {
 const Chatbot = () => {
   const { toast } = useToast();
   const { isRecording, isPlaying, isProcessing, startRecording, stopRecording, playText, stopPlaying } = useSpeech();
+  const [user, setUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -29,37 +33,96 @@ const Chatbot = () => {
   ]);
   const [input, setInput] = useState("");
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+  }, []);
   
   const suggestions = [
-    "Show me vegetarian grab-and-go",
-    "Under 500 calories",
-    "High protein meals",
-    "Gluten-free options",
+    "What's for lunch today?",
+    "Show my nutrition totals",
+    "Log a meal",
+    "Show my recent orders",
+    "Find high protein meals",
+    "Track my meal history",
   ];
   
-  const handleSend = () => {
-    if (!input.trim()) return;
-    
+  const handleSend = async () => {
+    if (!input.trim() || !user) {
+      if (!user) {
+        toast({
+          title: "Not authenticated",
+          description: "Please sign in to use the chatbot",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content: input,
       timestamp: new Date(),
     };
-    
+
     setMessages([...messages, userMessage]);
     setInput("");
-    
-    // Simulate bot response
-    setTimeout(() => {
+    setIsSending(true);
+
+    try {
+      // Get user's location (optional)
+      let userLocation;
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        });
+        userLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+      } catch {
+        // Location is optional, continue without it
+        userLocation = undefined;
+      }
+
+      // Call chatbot API
+      const response = await chatbotApi.sendMessage({
+        message: input,
+        user_id: user.id,
+        user_location: userLocation,
+      });
+
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "Great choice! Let me find some options for you. I found 5 meals that match your preferences...",
+        content: response.response,
+        timestamp: new Date(response.timestamp),
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error("Chatbot error:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+
+      // Add error message to chat
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Sorry, I'm having trouble processing your request right now. Please try again later.",
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, botMessage]);
-    }, 1000);
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsSending(false);
+    }
   };
   
   const handleSuggestionClick = (suggestion: string) => {
@@ -206,9 +269,10 @@ const Chatbot = () => {
                   <Input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSend()}
+                    onKeyPress={(e) => e.key === "Enter" && !isSending && handleSend()}
                     placeholder="Ask me anything about campus dining..."
                     className="flex-1 bg-background"
+                    disabled={isSending || !user}
                   />
                   <Button
                     variant={isRecording ? "destructive" : "outline"}
@@ -229,8 +293,13 @@ const Chatbot = () => {
                     onClick={handleSend}
                     size="icon"
                     className="flex-shrink-0 bg-gradient-to-r from-primary to-primary/90"
+                    disabled={isSending || !user}
                   >
-                    <Send className="h-4 w-4" />
+                    {isSending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>

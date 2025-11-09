@@ -2,20 +2,22 @@
 AI Chatbot API for UMass Dining Hall Orders
 Uses PydanticAI with Gemini to help users create orders from dining hall menus
 Stores chat history in Supabase and uses current date for menu queries
+Integrated with Nutrition API and Orders API via HTTP
 """
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
 from dataclasses import dataclass
 from datetime import datetime
+from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
 from typing import Optional, List
 from supabase import create_client, Client
+import httpx
 
 load_dotenv()
-
-app = FastAPI(title="DoorSmash AI Chatbot API")
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -26,9 +28,32 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# API Base URLs (configurable)
+NUTRITION_API_BASE = os.getenv("NUTRITION_API_BASE", "http://localhost:8000")
+ORDERS_API_BASE = os.getenv("ORDERS_API_BASE", "http://localhost:8000")
+
+<<<<<<< HEAD
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+=======
 @app.on_event("startup")
 async def startup():
+>>>>>>> dbda1f1fece40435be928702eaaaedc169b10ca1
     os.environ.setdefault("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
+    yield
+    # Shutdown (if needed)
+
+app = FastAPI(title="DoorSmash AI Chatbot API", lifespan=lifespan)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class UserLocation(BaseModel):
     latitude: float
@@ -142,19 +167,19 @@ class ChatbotDeps:
     user_id: str
     chat_history: List[dict]
     user_location: Optional[dict] = None  # {latitude: float, longitude: float}
+    http_client: httpx.AsyncClient = None  # HTTP client for API calls
 
 # Create the agent with Gemini
 agent = Agent(
     'google-gla:gemini-2.5-flash',
     deps_type=ChatbotDeps,
-    system_prompt="""You are a helpful UMass dining hall order assistant for DoorSmash.
+    system_prompt="""You are a helpful UMass dining hall assistant for DoorSmash.
 
 YOUR ROLE:
-1. Browse available food items from dining halls
-2. Search for specific foods or filter by location/meal type
-3. Help users build orders by selecting items
-4. Create orders with ALL required information
-5. View order history and details
+1. ORDERS - Browse dining hall menus, create/manage food delivery orders
+2. NUTRITION - Track meals, monitor calories/macros, manage health goals
+3. PROFILE - Help users set dietary preferences, goals, and health metrics
+4. INTEGRATION - Offer to track ordered food in nutrition log (always ask first!)
 
 ORDER CREATION PROCESS - FOLLOW THIS STRICTLY:
 When a user wants to create an order, you MUST collect ALL information before calling create_order:
@@ -585,19 +610,458 @@ async def get_order_details(ctx: RunContext[ChatbotDeps], order_id: str) -> str:
     except Exception as e:
         return f"Error fetching order: {str(e)}"
 
+# ==================== NUTRITION API TOOLS ====================
+
+@agent.tool
+async def search_nutrition_food_items(
+    ctx: RunContext[ChatbotDeps],
+    query: str = "",
+    limit: int = 20,
+    date: Optional[str] = None
+) -> str:
+    """Search food items in nutrition database (different from order menus).
+
+    Args:
+        query: Search term for food name (empty returns all items)
+        limit: Max results (default 20, max 200)
+        date: Optional date filter in YYYY-MM-DD format (e.g., "2025-11-10" for November 10, 2025)
+
+    Returns list of food items with nutrition info for tracking meals.
+    Note: The API automatically converts YYYY-MM-DD to the database date format.
+    """
+    try:
+        params = {"q": query, "limit": limit}
+        if date:
+            params["date"] = date
+
+        response = await ctx.deps.http_client.get(
+            f"{NUTRITION_API_BASE}/api/nutrition/food-items/search",
+            params=params,
+            timeout=10.0
+        )
+        if response.status_code == 200:
+            items = response.json()
+            if not items:
+                return f"No food items found for '{query}'"
+
+            result_lines = [f"🔍 Found {len(items)} nutrition items:\n"]
+            for i, item in enumerate(items[:limit], 1):
+                result_lines.append(
+                    f"{i}. **{item['name']}** (ID: {item['id']})\n"
+                    f"   Serving: {item['serving_size']}\n"
+                    f"   📊 {item['calories']} cal | 💪 {item['protein']}g protein | "
+                    f"🍚 {item['total_carb']}g carbs | 🥑 {item['total_fat']}g fat\n"
+                    f"   📍 {item.get('location', 'N/A')} - {item.get('meal_type', 'N/A')}"
+                )
+            return "\n".join(result_lines)
+        else:
+            return f"Error searching food items: {response.status_code}"
+    except Exception as e:
+        return f"Error searching nutrition food items: {str(e)}"
+
+@agent.tool
+async def log_meal_to_nutrition(
+    ctx: RunContext[ChatbotDeps],
+    food_item_id: int,
+    servings: float = 1.0,
+    meal_category: str = "Lunch",
+    entry_date: Optional[str] = None
+) -> str:
+    """Log a meal to user's nutrition tracker.
+
+    Args:
+        food_item_id: ID of food item from nutrition database
+        servings: Number of servings (default 1.0)
+        meal_category: "Breakfast", "Lunch", or "Dinner"
+        entry_date: Date (YYYY-MM-DD, defaults to today)
+
+    Returns confirmation with nutritional totals.
+    """
+    try:
+        payload = {
+            "profile_id": ctx.deps.user_id,
+            "food_item_id": food_item_id,
+            "servings": servings,
+            "meal_category": meal_category
+        }
+        if entry_date:
+            payload["entry_date"] = entry_date
+
+        response = await ctx.deps.http_client.post(
+            f"{NUTRITION_API_BASE}/api/nutrition/meals",
+            json=payload,
+            timeout=10.0
+        )
+        if response.status_code == 201:
+            meal = response.json()
+            food = meal.get('food_item', {})
+            total_cals = food.get('calories', 0) * servings
+            total_protein = food.get('protein', 0) * servings
+            total_carbs = food.get('total_carb', 0) * servings
+            total_fat = food.get('total_fat', 0) * servings
+
+            return f"""✅ Meal logged successfully!
+
+📝 Entry: {food.get('name', 'Unknown')}
+🍽️ Servings: {servings}
+📅 Category: {meal_category}
+
+📊 Nutritional Impact:
+- Calories: {total_cals:.0f} kcal
+- Protein: {total_protein:.1f}g
+- Carbs: {total_carbs:.1f}g
+- Fat: {total_fat:.1f}g"""
+        else:
+            error_detail = response.json().get('detail', 'Unknown error')
+            return f"Error logging meal: {error_detail}"
+    except Exception as e:
+        return f"Error logging meal: {str(e)}"
+
+@agent.tool
+async def get_daily_nutrition_totals(
+    ctx: RunContext[ChatbotDeps],
+    date: Optional[str] = None
+) -> str:
+    """Get total nutrition intake for a specific date or today.
+
+    Args:
+        date: Date in YYYY-MM-DD format (defaults to today)
+
+    Returns daily nutritional totals and meal count.
+    """
+    try:
+        endpoint = f"{NUTRITION_API_BASE}/api/nutrition/totals/user/{ctx.deps.user_id}"
+        if date:
+            endpoint += f"/date/{date}"
+        else:
+            endpoint += "/today"
+
+        response = await ctx.deps.http_client.get(endpoint, timeout=10.0)
+        if response.status_code == 200:
+            totals = response.json()
+            return f"""📊 Nutrition Summary for {totals.get('date', 'today')}:
+
+🔥 Calories: {totals.get('calories', 0)} kcal
+💪 Protein: {totals.get('protein', 0):.1f}g
+🍚 Carbs: {totals.get('total_carb', 0):.1f}g
+🥑 Fat: {totals.get('total_fat', 0):.1f}g
+🧂 Sodium: {totals.get('sodium', 0):.0f}mg
+🌾 Fiber: {totals.get('dietary_fiber', 0):.1f}g
+🍬 Sugars: {totals.get('sugars', 0):.1f}g
+
+🍽️ Meals logged: {totals.get('meal_count', 0)}"""
+        else:
+            return f"Error fetching nutrition totals: {response.status_code}"
+    except Exception as e:
+        return f"Error getting daily totals: {str(e)}"
+
+@agent.tool
+async def get_meal_history(
+    ctx: RunContext[ChatbotDeps],
+    days: int = 7
+) -> str:
+    """Get user's meal history for the past N days.
+
+    Args:
+        days: Number of days of history (1-30, default 7)
+
+    Returns weekly meal history with daily totals.
+    """
+    try:
+        response = await ctx.deps.http_client.get(
+            f"{NUTRITION_API_BASE}/api/nutrition/meals/user/{ctx.deps.user_id}/history",
+            params={"days": min(days, 30)},
+            timeout=10.0
+        )
+        if response.status_code == 200:
+            history = response.json()
+            daily_totals = history.get('daily_totals', {})
+
+            if not daily_totals:
+                return "No meal history found for this period."
+
+            result_lines = [f"📅 Meal History ({history.get('start_date')} to {history.get('end_date')}):\n"]
+
+            for date, totals in daily_totals.items():
+                result_lines.append(
+                    f"**{date}**\n"
+                    f"  🔥 {totals['calories']} cal | 💪 {totals['protein']:.1f}g P | "
+                    f"🍚 {totals['total_carb']:.1f}g C | 🥑 {totals['total_fat']:.1f}g F\n"
+                    f"  🍽️ {totals['meal_count']} meals"
+                )
+
+            return "\n".join(result_lines)
+        else:
+            return f"Error fetching meal history: {response.status_code}"
+    except Exception as e:
+        return f"Error getting meal history: {str(e)}"
+
+@agent.tool
+async def get_user_nutrition_profile(ctx: RunContext[ChatbotDeps]) -> str:
+    """Get user's nutrition profile including health metrics and goals.
+
+    Returns profile with BMR, TDEE, dietary preferences, and nutrition goals.
+    """
+    try:
+        response = await ctx.deps.http_client.get(
+            f"{NUTRITION_API_BASE}/api/nutrition/profiles/{ctx.deps.user_id}",
+            timeout=10.0
+        )
+        if response.status_code == 200:
+            profile = response.json()
+
+            result = f"""👤 Nutrition Profile:
+
+📋 Basic Info:
+- Name: {profile.get('full_name', 'Not set')}
+- Age: {profile.get('age', 'Not set')}
+- Sex: {profile.get('sex', 'Not set')}
+- Height: {profile.get('height_inches', 'Not set')} inches
+- Weight: {profile.get('weight_lbs', 'Not set')} lbs
+
+📊 Metabolic Rates:
+- BMR: {profile.get('bmr', 'Not calculated')} cal/day
+- TDEE: {profile.get('tdee', 'Not calculated')} cal/day
+- Activity Level: {profile.get('activity_level', 'Not set')}/5
+
+🎯 Daily Goals:
+- Calories: {profile.get('goal_calories', 'Not set')} kcal
+- Protein: {profile.get('goal_protein', 'Not set')}g
+- Carbs: {profile.get('goal_carbs', 'Not set')}g
+- Fat: {profile.get('goal_fat', 'Not set')}g
+
+🥗 Dietary Preferences: {', '.join(profile.get('dietary_preferences', [])) or 'None set'}
+📝 Goals: {profile.get('goals', 'Not set')}"""
+
+            return result
+        elif response.status_code == 404:
+            return "❌ No nutrition profile found. User needs to complete onboarding."
+        else:
+            return f"Error fetching profile: {response.status_code}"
+    except Exception as e:
+        return f"Error getting nutrition profile: {str(e)}"
+
+@agent.tool
+async def update_nutrition_profile(
+    ctx: RunContext[ChatbotDeps],
+    age: Optional[int] = None,
+    sex: Optional[str] = None,
+    height_inches: Optional[float] = None,
+    weight_lbs: Optional[float] = None,
+    activity_level: Optional[int] = None,
+    goals: Optional[str] = None,
+    goal_calories: Optional[int] = None
+) -> str:
+    """Update user's nutrition profile and health metrics.
+
+    Args:
+        age: Age in years
+        sex: "Male", "Female", or "Other"
+        height_inches: Height in inches
+        weight_lbs: Weight in pounds
+        activity_level: 1 (sedentary) to 5 (very active)
+        goals: Text description of fitness/nutrition goals
+        goal_calories: Daily calorie goal
+
+    Returns updated profile with recalculated BMR/TDEE.
+    """
+    try:
+        update_data = {}
+        if age is not None:
+            update_data["age"] = age
+        if sex is not None:
+            update_data["sex"] = sex
+        if height_inches is not None:
+            update_data["height_inches"] = height_inches
+        if weight_lbs is not None:
+            update_data["weight_lbs"] = weight_lbs
+        if activity_level is not None:
+            update_data["activity_level"] = activity_level
+        if goals is not None:
+            update_data["goals"] = goals
+        if goal_calories is not None:
+            update_data["goal_calories"] = goal_calories
+
+        if not update_data:
+            return "No fields provided to update."
+
+        response = await ctx.deps.http_client.patch(
+            f"{NUTRITION_API_BASE}/api/nutrition/profiles/{ctx.deps.user_id}",
+            json=update_data,
+            timeout=10.0
+        )
+        if response.status_code == 200:
+            profile = response.json()
+            return f"""✅ Profile updated successfully!
+
+Updated metrics:
+- BMR: {profile.get('bmr', 'N/A')} cal/day
+- TDEE: {profile.get('tdee', 'N/A')} cal/day
+
+Your body now burns approximately {profile.get('tdee', 0)} calories per day based on your updated metrics."""
+        else:
+            error_detail = response.json().get('detail', 'Unknown error')
+            return f"Error updating profile: {error_detail}"
+    except Exception as e:
+        return f"Error updating nutrition profile: {str(e)}"
+
+# ==================== ORDER MANAGEMENT TOOLS ====================
+
+@agent.tool
+async def update_order_status(
+    ctx: RunContext[ChatbotDeps],
+    order_id: str,
+    new_status: str
+) -> str:
+    """Update the status of an existing order.
+
+    Args:
+        order_id: UUID of the order
+        new_status: New status - "pending", "preparing", "ready", "out_for_delivery", "delivered", "completed", "cancelled"
+
+    Returns updated order details.
+    """
+    try:
+        response = await ctx.deps.http_client.patch(
+            f"{ORDERS_API_BASE}/orders/{order_id}/status",
+            json={"status": new_status},
+            timeout=10.0
+        )
+        if response.status_code == 200:
+            order = response.json()
+            return f"""✅ Order status updated!
+
+Order ID: {order['id'][:8]}...
+New Status: {order['status']}
+Delivery: {order['delivery_location']}"""
+        else:
+            error_detail = response.json().get('detail', 'Unknown error')
+            return f"Error updating order status: {error_detail}"
+    except Exception as e:
+        return f"Error updating order status: {str(e)}"
+
+@agent.tool
+async def add_item_to_order(
+    ctx: RunContext[ChatbotDeps],
+    order_id: str,
+    food_item_id: int,
+    quantity: int = 1
+) -> str:
+    """Add an item to an existing order.
+
+    Args:
+        order_id: UUID of the order
+        food_item_id: ID of food item to add
+        quantity: Quantity to add (default 1)
+
+    Returns updated order with new totals.
+    """
+    try:
+        response = await ctx.deps.http_client.post(
+            f"{ORDERS_API_BASE}/orders/{order_id}/items",
+            json={"food_item_id": food_item_id, "quantity": quantity},
+            timeout=10.0
+        )
+        if response.status_code == 200:
+            order = response.json()
+            return f"""✅ Item added to order!
+
+Order ID: {order['id'][:8]}...
+Total Items: {len(order.get('items', []))}
+New Total: {order.get('total_calories', 0)} cal"""
+        else:
+            error_detail = response.json().get('detail', 'Unknown error')
+            return f"Error adding item: {error_detail}"
+    except Exception as e:
+        return f"Error adding item to order: {str(e)}"
+
+@agent.tool
+async def remove_item_from_order(
+    ctx: RunContext[ChatbotDeps],
+    order_id: str,
+    item_id: str
+) -> str:
+    """Remove an item from an existing order.
+
+    Args:
+        order_id: UUID of the order
+        item_id: UUID of the order item to remove
+
+    Returns confirmation message.
+    """
+    try:
+        response = await ctx.deps.http_client.delete(
+            f"{ORDERS_API_BASE}/orders/{order_id}/items/{item_id}",
+            timeout=10.0
+        )
+        if response.status_code == 200:
+            result = response.json()
+            return f"✅ {result.get('message', 'Item removed successfully')}"
+        else:
+            error_detail = response.json().get('detail', 'Unknown error')
+            return f"Error removing item: {error_detail}"
+    except Exception as e:
+        return f"Error removing item from order: {str(e)}"
+
+@agent.tool
+async def cancel_order(ctx: RunContext[ChatbotDeps], order_id: str) -> str:
+    """Cancel an existing order.
+
+    Args:
+        order_id: UUID of the order to cancel
+
+    Returns confirmation message.
+    """
+    try:
+        response = await ctx.deps.http_client.delete(
+            f"{ORDERS_API_BASE}/orders/{order_id}",
+            timeout=10.0
+        )
+        if response.status_code == 200:
+            result = response.json()
+            return f"✅ {result.get('message', 'Order cancelled successfully')}"
+        else:
+            error_detail = response.json().get('detail', 'Unknown error')
+            return f"Error cancelling order: {error_detail}"
+    except Exception as e:
+        return f"Error cancelling order: {str(e)}"
+
 @app.get("/")
 async def root():
     return {
-        "message": "DoorSmash AI Chatbot API",
-        "version": "3.0.0",
+        "message": "DoorSmash AI Chatbot API - Complete Food Ordering & Nutrition Platform",
+        "version": "4.0.0",
         "model": "google-gla:gemini-2.5-flash",
-        "features": [
-            "Chat history with Supabase",
-            "Current date-aware menu search",
-            "Complete order management",
-            "Nutritional tracking",
-            "Multi-user support"
-        ]
+        "features": {
+            "orders": [
+                "Browse dining hall menus by location/date/meal type",
+                "Create orders with delivery tracking",
+                "Update order status (pending → delivered)",
+                "Add/remove items from existing orders",
+                "Cancel orders",
+                "View order history and details"
+            ],
+            "nutrition": [
+                "Search food items database",
+                "Log meals with servings tracking",
+                "View daily nutrition totals (calories, macros, fiber, sodium)",
+                "Get weekly meal history",
+                "View/update user nutrition profile",
+                "BMR & TDEE calculations",
+                "Dietary goals and preferences"
+            ],
+            "integration": [
+                "Auto-suggest logging ordered food to nutrition tracker",
+                "Chat history with Supabase",
+                "Location-aware features",
+                "Multi-user support"
+            ]
+        },
+        "endpoints": {
+            "chat": "/chat - Main chatbot endpoint",
+            "history": "/history/{user_id} - Get chat history",
+            "docs": "/docs - API documentation"
+        }
     }
 
 @app.post("/chat", response_model=ChatResponse)
@@ -618,19 +1082,22 @@ async def chat(request: ChatRequest):
                 "longitude": request.user_location.longitude
             }
 
-        # Run agent with context
-        deps = ChatbotDeps(
-            user_id=request.user_id,
-            chat_history=chat_history,
-            user_location=user_location_dict
-        )
+        # Create HTTP client for API calls
+        async with httpx.AsyncClient() as http_client:
+            # Run agent with context
+            deps = ChatbotDeps(
+                user_id=request.user_id,
+                chat_history=chat_history,
+                user_location=user_location_dict,
+                http_client=http_client
+            )
 
-        result = await agent.run(request.message, deps=deps)
+            result = await agent.run(request.message, deps=deps)
 
-        # Save assistant response
-        await save_chat_message(request.user_id, "assistant", result.output)
+            # Save assistant response
+            await save_chat_message(request.user_id, "assistant", result.output)
 
-        return ChatResponse(response=result.output)
+            return ChatResponse(response=result.output)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
