@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import StatCard from "@/components/StatCard";
 import { Card } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Flame,
   Beef,
@@ -30,6 +31,7 @@ import {
   Trash2,
   Loader2,
   ChevronDown,
+  Search,
 } from "lucide-react";
 import {
   BarChart,
@@ -45,6 +47,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { nutritionApi, type MealEntry as ApiMealEntry, type FoodItem } from "@/lib/api";
 
 type MealEntryItem = {
   id: string;
@@ -58,13 +61,7 @@ type MealEntryItem = {
   dining_hall?: string | null;
 };
 
-type MealEntry = {
-  id: number;
-  profile_id: string;
-  food_item_id: number;
-  meal_category: string;
-  entry_date: string;
-  servings: number;
+type MealEntry = ApiMealEntry & {
   food_item?: {
     id: number;
     name: string;
@@ -86,10 +83,42 @@ const Nutrition = () => {
     open: false,
     entry: null,
   });
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<{ tdee?: number; weight_lbs?: number } | null>(null);
   const [expandedMealId, setExpandedMealId] = useState<number | null>(null);
 
-  // Form state for adding/editing meals
+  // Date selection state
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [selectedEntryDate, setSelectedEntryDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'single' | 'multi'>('single'); // Toggle between single day and multi-day view
+  const [multiDayMeals, setMultiDayMeals] = useState<Record<string, MealEntry[]>>({});
+
+  // Helper to check if a date is in the past
+  const isDateInPast = (dateStr: string) => {
+    const today = new Date().toISOString().split("T")[0];
+    return dateStr < today;
+  };
+
+  // Helper to generate date range (today + next 14 days)
+  const getNext14Days = () => {
+    const dates = [];
+    for (let i = 0; i < 15; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() + i);
+      dates.push(date.toISOString().split("T")[0]);
+    }
+    return dates;
+  };
+
+  // Search state for Add Meal dialog
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<FoodItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedFoodItem, setSelectedFoodItem] = useState<FoodItem | null>(null);
+  const [servings, setServings] = useState("1");
+  const [mealCategory, setMealCategory] = useState("Lunch");
+
+  // Form state for manual entry (legacy, kept for reference)
   const [mealForm, setMealForm] = useState({
     name: "",
     calories: "",
@@ -100,11 +129,16 @@ const Nutrition = () => {
     category: "Lunch",
   });
 
-  useEffect(() => {
-    fetchData();
+  const fetchAvailableDates = useCallback(async () => {
+    try {
+      const { dates } = await nutritionApi.getAvailableDates();
+      setAvailableDates(dates);
+    } catch (error) {
+      console.error("Error fetching available dates:", error);
+    }
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const {
         data: { user },
@@ -112,133 +146,230 @@ const Nutrition = () => {
       if (!user) throw new Error("No user found");
 
       // Fetch user profile for TDEE
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+      try {
+        const profile = await nutritionApi.getProfile(user.id);
+        // Convert kg to lbs for display
+        const weight_lbs = profile.weight_kg * 2.20462;
+        setUserProfile({ ...profile, weight_lbs });
+      } catch (profileError) {
+        console.warn("Profile not found, using defaults");
+        setUserProfile({ tdee: 2000, weight_lbs: 150 });
+      }
 
-      if (profileError) throw profileError;
-      setUserProfile(profile);
-
-      // Fetch meal entries for today
-      const today = new Date().toISOString().split("T")[0];
-      const { data: entries, error: entriesError } = await supabase
-        .from("meal_entries")
-        .select(
-          `
-          *,
-          food_item:food_items(*),
-          meal_entry_items(*)
-        `,
-        )
-        .eq("profile_id", user.id)
-        .eq("entry_date", today);
-
-      if (entriesError) throw entriesError;
-      setMealEntries((entries as any) || []);
-    } catch (error: any) {
+      // Fetch meal entries for selected date using API
+      const mealsData = await nutritionApi.getMealsByDate(user.id, selectedDate);
+      
+      // Convert the grouped meals back to a flat array with food_item details
+      const allMeals: MealEntry[] = [];
+      for (const category of ['Breakfast', 'Lunch', 'Dinner']) {
+        const categoryMeals = mealsData[category as keyof typeof mealsData] || [];
+        categoryMeals.forEach(meal => {
+          allMeals.push({
+            ...meal,
+            food_item: {
+              id: meal.food_item_id,
+              name: meal.food_name || '',
+              calories: meal.calories || 0,
+              protein: meal.protein || 0,
+              total_carb: meal.total_carb || 0,
+              total_fat: meal.total_fat || 0,
+              serving_size: meal.serving_size || '',
+              location: meal.location,
+            }
+          });
+        });
+      }
+      
+      setMealEntries(allMeals);
+    } catch (error) {
       console.error("Error fetching data:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to load nutrition data",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate]);
 
-  const handleAddMeal = async () => {
+  const fetchMultiDayData = useCallback(async () => {
+    setLoading(true);
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      const currentDate = new Date().toISOString().split("T")[0];
-
-      // Check if food item already exists
-      const { data: existingFoodItem } = await supabase
-        .from("food_items")
-        .select()
-        .eq("name", mealForm.name)
-        .eq("location", "Custom")
-        .eq("date", currentDate)
-        .eq("meal_type", mealForm.category)
-        .maybeSingle();
-
-      let foodItem;
-
-      if (existingFoodItem) {
-        // Use existing food item
-        foodItem = existingFoodItem;
-      } else {
-        // Create new food item
-        const { data: newFoodItem, error: foodError } = await supabase
-          .from("food_items")
-          .insert({
-            name: mealForm.name,
-            calories: parseInt(mealForm.calories) || 0,
-            protein: parseFloat(mealForm.protein) || 0,
-            total_carb: parseFloat(mealForm.carbs) || 0,
-            total_fat: parseFloat(mealForm.fat) || 0,
-            sodium: 0,
-            dietary_fiber: 0,
-            sugars: 0,
-            serving_size: "1 serving",
-            location: "Custom",
-            meal_type: mealForm.category,
-            date: currentDate,
-          })
-          .select()
-          .single();
-
-        if (foodError) throw foodError;
-        foodItem = newFoodItem;
+      // Fetch user profile for TDEE
+      try {
+        const profile = await nutritionApi.getProfile(user.id);
+        const weight_lbs = profile.weight_kg * 2.20462;
+        setUserProfile({ ...profile, weight_lbs });
+      } catch (profileError) {
+        console.warn("Profile not found, using defaults");
+        setUserProfile({ tdee: 2000, weight_lbs: 150 });
       }
 
-      // Create meal entry
-      const { error: entryError } = await supabase.from("meal_entries").insert({
-        profile_id: user.id,
-        food_item_id: foodItem.id,
-        meal_category: mealForm.category,
-        entry_date: new Date().toISOString().split("T")[0],
-        servings: parseFloat(mealForm.servings),
-      });
+      // Fetch meal entries for next 14 days
+      const dates = getNext14Days();
+      const mealsByDate: Record<string, MealEntry[]> = {};
 
-      if (entryError) throw entryError;
+      for (const date of dates) {
+        const mealsData = await nutritionApi.getMealsByDate(user.id, date);
+        
+        const allMeals: MealEntry[] = [];
+        for (const category of ['Breakfast', 'Lunch', 'Dinner']) {
+          const categoryMeals = mealsData[category as keyof typeof mealsData] || [];
+          categoryMeals.forEach(meal => {
+            allMeals.push({
+              ...meal,
+              food_item: {
+                id: meal.food_item_id,
+                name: meal.food_name || '',
+                calories: meal.calories || 0,
+                protein: meal.protein || 0,
+                total_carb: meal.total_carb || 0,
+                total_fat: meal.total_fat || 0,
+                serving_size: meal.serving_size || '',
+                location: meal.location,
+              }
+            });
+          });
+        }
+        
+        mealsByDate[date] = allMeals;
+      }
+      
+      setMultiDayMeals(mealsByDate);
+    } catch (error) {
+      console.error("Error fetching multi-day data:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load nutrition data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAvailableDates();
+    if (viewMode === 'single') {
+      fetchData();
+    } else {
+      fetchMultiDayData();
+    }
+  }, [viewMode, fetchAvailableDates, fetchData, fetchMultiDayData]);
+
+  useEffect(() => {
+    if (viewMode === 'single') {
+      fetchData();
+    }
+  }, [selectedDate, viewMode, fetchData]);
+
+  // Search for food items in the database (filtered by selected entry date)
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    
+    if (!query || query.trim().length === 0) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Search only for foods available on the selected entry date
+      const results = await nutritionApi.searchFoodItems(query, 50, selectedEntryDate);
+      setSearchResults(results);
+    } catch (error) {
+      console.error("Search error:", error);
+      toast({
+        title: "Search Error",
+        description: error instanceof Error ? error.message : "Failed to search food items",
+        variant: "destructive",
+      });
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Select a food item from search results
+  const handleSelectFoodItem = (item: FoodItem) => {
+    setSelectedFoodItem(item);
+    setSearchQuery(item.name);
+    setSearchResults([]);
+  };
+
+  // Add the selected meal to user's log
+  const handleAddMeal = async () => {
+    try {
+      if (!selectedFoodItem) {
+        toast({
+          title: "No food selected",
+          description: "Please search and select a food item first",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      // Create meal entry using the selected entry date
+      await nutritionApi.createMealEntry({
+        profile_id: user.id,
+        food_item_id: selectedFoodItem.id,
+        meal_category: mealCategory,
+        servings: parseFloat(servings),
+        entry_date: selectedEntryDate,
+      });
 
       toast({
         title: "Meal added!",
-        description: "Your meal has been added to your nutrition log.",
+        description: `${selectedFoodItem.name} has been added to your nutrition log for ${selectedEntryDate}.`,
       });
 
+      // Reset form
       setAddMealDialog(false);
-      setMealForm({
-        name: "",
-        calories: "",
-        protein: "",
-        carbs: "",
-        fat: "",
-        servings: "1",
-        category: "Lunch",
-      });
-      fetchData();
-    } catch (error: any) {
+      setSearchQuery("");
+      setSearchResults([]);
+      setSelectedFoodItem(null);
+      setServings("1");
+      setMealCategory("Lunch");
+      
+      // If adding to the current selected date, refresh
+      if (selectedEntryDate === selectedDate) {
+        fetchData();
+      }
+    } catch (error) {
+      console.error('❌ Error adding meal:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to add meal",
         variant: "destructive",
       });
     }
   };
 
+  // Reset search state when dialog opens
+  const handleOpenAddMealDialog = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setSelectedFoodItem(null);
+    setServings("1");
+    setMealCategory("Lunch");
+    setSelectedEntryDate(selectedDate); // Default to currently viewed date
+    setAddMealDialog(true);
+  };
+
   const handleDeleteMeal = async (entryId: number) => {
     try {
-      const { error } = await supabase.from("meal_entries").delete().eq("id", entryId);
-
-      if (error) throw error;
+      await nutritionApi.deleteMealEntry(entryId);
 
       toast({
         title: "Meal deleted",
@@ -246,10 +377,10 @@ const Nutrition = () => {
       });
 
       fetchData();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to delete meal",
         variant: "destructive",
       });
     }
@@ -257,9 +388,7 @@ const Nutrition = () => {
 
   const handleUpdateServings = async (entryId: number, newServings: number) => {
     try {
-      const { error } = await supabase.from("meal_entries").update({ servings: newServings }).eq("id", entryId);
-
-      if (error) throw error;
+      await nutritionApi.updateMealEntry(entryId, newServings);
 
       toast({
         title: "Servings updated",
@@ -267,10 +396,10 @@ const Nutrition = () => {
       });
 
       fetchData();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to update servings",
         variant: "destructive",
       });
     }
@@ -313,23 +442,112 @@ const Nutrition = () => {
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
-              Nutrition Dashboard
-            </h1>
-            <p className="text-muted-foreground text-lg">Monitor your daily intake and reach your fitness goals</p>
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
+                Nutrition Dashboard
+              </h1>
+              <p className="text-muted-foreground text-lg">Monitor your daily intake and reach your fitness goals</p>
+            </div>
+            {!isDateInPast(selectedDate) && (
+              <Button onClick={handleOpenAddMealDialog} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Meal
+              </Button>
+            )}
           </div>
-          <Button onClick={() => setAddMealDialog(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Meal
-          </Button>
+          
+          {/* Date Selector */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <Label className="text-sm font-medium">
+                Viewing Date: 
+                <span className="text-xs text-muted-foreground ml-2">(Past 7 days + Next 14 days)</span>
+              </Label>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const prevDate = new Date(selectedDate);
+                  prevDate.setDate(prevDate.getDate() - 1);
+                  const sevenDaysAgo = new Date();
+                  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                  const minDate = sevenDaysAgo.toISOString().split("T")[0];
+                  const newDate = prevDate.toISOString().split("T")[0];
+                  if (newDate >= minDate) {
+                    setSelectedDate(newDate);
+                  }
+                }}
+                disabled={(() => {
+                  const sevenDaysAgo = new Date();
+                  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                  return selectedDate <= sevenDaysAgo.toISOString().split("T")[0];
+                })()}
+              >
+                ← Previous
+              </Button>
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                max={(() => {
+                  const fourteenDaysLater = new Date();
+                  fourteenDaysLater.setDate(fourteenDaysLater.getDate() + 14);
+                  return fourteenDaysLater.toISOString().split("T")[0];
+                })()}
+                min={(() => {
+                  const sevenDaysAgo = new Date();
+                  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                  return sevenDaysAgo.toISOString().split("T")[0];
+                })()}
+                className="w-40"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const nextDate = new Date(selectedDate);
+                  nextDate.setDate(nextDate.getDate() + 1);
+                  const fourteenDaysLater = new Date();
+                  fourteenDaysLater.setDate(fourteenDaysLater.getDate() + 14);
+                  const maxDate = fourteenDaysLater.toISOString().split("T")[0];
+                  const newDate = nextDate.toISOString().split("T")[0];
+                  if (newDate <= maxDate) {
+                    setSelectedDate(newDate);
+                  }
+                }}
+                disabled={(() => {
+                  const fourteenDaysLater = new Date();
+                  fourteenDaysLater.setDate(fourteenDaysLater.getDate() + 14);
+                  return selectedDate >= fourteenDaysLater.toISOString().split("T")[0];
+                })()}
+              >
+                Next →
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
+              >
+                Today
+              </Button>
+            </div>
+            {isDateInPast(selectedDate) && (
+              <Badge variant="outline" className="ml-2">
+                📖 View Only - Past Date
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
-            title="Today's Calories"
+            title={selectedDate === new Date().toISOString().split("T")[0] ? "Today's Calories" : "Calories"}
             value={Math.round(todayTotals.calories).toString()}
             subtitle={`of ${tdeeGoal} kcal`}
             icon={Flame}
@@ -487,15 +705,27 @@ const Nutrition = () => {
         <Card className="p-6 shadow-lg border-border/50 bg-card/50 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="font-semibold text-xl mb-1">Today's Meals</h3>
-              <p className="text-sm text-muted-foreground">Your nutrition intake for today</p>
+              <h3 className="font-semibold text-xl mb-1">
+                {selectedDate === new Date().toISOString().split("T")[0] 
+                  ? "Today's Meals" 
+                  : `Meals for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`
+                }
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {selectedDate === new Date().toISOString().split("T")[0]
+                  ? "Your nutrition intake for today"
+                  : isDateInPast(selectedDate)
+                    ? "View past meals (read-only)"
+                    : "Plan your meals for this date"
+                }
+              </p>
             </div>
           </div>
           {mealEntries.length === 0 ? (
             <div className="text-center py-12">
               <Salad className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-muted-foreground mb-4">No meals logged yet today</p>
-              <Button onClick={() => setAddMealDialog(true)} variant="outline" className="gap-2">
+              <Button onClick={handleOpenAddMealDialog} variant="outline" className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add Your First Meal
               </Button>
@@ -542,17 +772,19 @@ const Nutrition = () => {
                               <p className="text-sm font-semibold mt-1">{Math.round(item.protein * entry.servings)}g</p>
                               <p className="text-xs text-muted-foreground">protein</p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteMeal(entry.id);
-                              }}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {!isDateInPast(selectedDate) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteMeal(entry.id);
+                                }}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </CollapsibleTrigger>
@@ -615,108 +847,342 @@ const Nutrition = () => {
         </Card>
       </div>
 
+      {/* Upcoming Meal Plans (Next 14 Days) */}
+      <div className="mb-8">
+        <Card className="p-6 shadow-lg border-border/50 bg-card/50 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-semibold text-xl mb-1">Upcoming Meal Plans</h3>
+              <p className="text-sm text-muted-foreground">Your planned meals for the next 14 days</p>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                if (viewMode === 'single') {
+                  fetchMultiDayData();
+                  setViewMode('multi');
+                } else {
+                  fetchData();
+                  setViewMode('single');
+                }
+              }}
+            >
+              {viewMode === 'single' ? 'Load Upcoming Meals' : 'Hide'}
+            </Button>
+          </div>
+
+          {viewMode === 'multi' && (
+            loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-3 text-muted-foreground">Loading meal plans...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {getNext14Days().slice(1).map((date) => {
+                  const meals = multiDayMeals[date] || [];
+                  const dateObj = new Date(date + 'T00:00:00');
+                  const dayLabel = date === new Date().toISOString().split("T")[0] 
+                    ? "Today" 
+                    : dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                  
+                  const dayTotals = meals.reduce(
+                    (acc, entry) => {
+                      const item = entry.food_item;
+                      if (!item) return acc;
+                      return {
+                        calories: acc.calories + (item.calories * entry.servings),
+                        protein: acc.protein + (item.protein * entry.servings),
+                        carbs: acc.carbs + (item.total_carb * entry.servings),
+                        fat: acc.fat + (item.total_fat * entry.servings),
+                      };
+                    },
+                    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+                  );
+
+                  return (
+                    <Collapsible key={date}>
+                      <div className="rounded-lg border border-border bg-background/50 hover:bg-muted/20 transition-all duration-200">
+                        <CollapsibleTrigger asChild>
+                          <div className="flex items-center justify-between p-4 cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <Calendar className="h-5 w-5 text-muted-foreground" />
+                              <div>
+                                <p className="font-semibold">{dayLabel}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {meals.length} meal{meals.length !== 1 ? 's' : ''} planned
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              {meals.length > 0 && (
+                                <div className="flex items-center gap-3 text-sm">
+                                  <div className="text-right">
+                                    <p className="font-semibold text-primary">{Math.round(dayTotals.calories)} cal</p>
+                                    <p className="text-xs text-muted-foreground">{Math.round(dayTotals.protein)}g protein</p>
+                                  </div>
+                                </div>
+                              )}
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          {meals.length === 0 ? (
+                            <div className="px-4 pb-4 border-t border-border/50">
+                              <p className="text-sm text-muted-foreground text-center py-4">
+                                No meals planned for this day yet
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="px-4 pb-4 border-t border-border/50 space-y-2">
+                              {meals.map((entry) => {
+                                const item = entry.food_item;
+                                if (!item) return null;
+
+                                return (
+                                  <div 
+                                    key={entry.id} 
+                                    className="flex items-center justify-between p-3 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors"
+                                  >
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-medium text-sm">{item.name}</p>
+                                        <Badge variant="outline" className="text-xs">
+                                          {entry.meal_category}
+                                        </Badge>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        {entry.servings} serving{entry.servings !== 1 ? 's' : ''}
+                                        {item.location && ` • ${item.location}`}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-semibold text-sm">{Math.round(item.calories * entry.servings)} cal</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {Math.round(item.protein * entry.servings)}g protein
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+                  );
+                })}
+              </div>
+            )
+          )}
+        </Card>
+      </div>
+
       {/* Add Meal Dialog */}
       <Dialog open={addMealDialog} onOpenChange={setAddMealDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Add New Meal</DialogTitle>
-            <DialogDescription>Enter the details of your meal to track your nutrition</DialogDescription>
+            <DialogTitle>Add Meal</DialogTitle>
+            <DialogDescription>Search for a food item from the dining hall database</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="name">Meal Name</Label>
+            {/* Date Selector for Entry */}
+            <div className="space-y-2">
+              <Label>Entry Date</Label>
               <Input
-                id="name"
-                value={mealForm.name}
-                onChange={(e) => setMealForm({ ...mealForm, name: e.target.value })}
-                placeholder="e.g., Grilled Chicken Salad"
+                type="date"
+                value={selectedEntryDate}
+                onChange={(e) => {
+                  setSelectedEntryDate(e.target.value);
+                  // Reset search when date changes
+                  setSearchQuery("");
+                  setSearchResults([]);
+                  setSelectedFoodItem(null);
+                }}
+                min={new Date().toISOString().split("T")[0]}
+                max={(() => {
+                  const fourteenDaysLater = new Date();
+                  fourteenDaysLater.setDate(fourteenDaysLater.getDate() + 14);
+                  return fourteenDaysLater.toISOString().split("T")[0];
+                })()}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Select today or up to 14 days in the future. Only foods available on this date will be shown.
+              </p>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search for food items (e.g., chicken, salad, pizza)..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-9"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="calories">Calories</Label>
-                <Input
-                  id="calories"
-                  type="number"
-                  value={mealForm.calories}
-                  onChange={(e) => setMealForm({ ...mealForm, calories: e.target.value })}
-                  placeholder="0"
-                />
+            {/* Search Results */}
+            {isSearching && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
-              <div>
-                <Label htmlFor="servings">Servings</Label>
-                <Input
-                  id="servings"
-                  type="number"
-                  step="0.1"
-                  value={mealForm.servings}
-                  onChange={(e) => setMealForm({ ...mealForm, servings: e.target.value })}
-                  placeholder="1"
-                />
-              </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="protein">Protein (g)</Label>
-                <Input
-                  id="protein"
-                  type="number"
-                  step="0.1"
-                  value={mealForm.protein}
-                  onChange={(e) => setMealForm({ ...mealForm, protein: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <Label htmlFor="carbs">Carbs (g)</Label>
-                <Input
-                  id="carbs"
-                  type="number"
-                  step="0.1"
-                  value={mealForm.carbs}
-                  onChange={(e) => setMealForm({ ...mealForm, carbs: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <Label htmlFor="fat">Fat (g)</Label>
-                <Input
-                  id="fat"
-                  type="number"
-                  step="0.1"
-                  value={mealForm.fat}
-                  onChange={(e) => setMealForm({ ...mealForm, fat: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-            </div>
+            {!isSearching && searchResults.length > 0 && !selectedFoodItem && (
+              <ScrollArea className="h-[300px] rounded-md border">
+                <div className="p-4 space-y-2">
+                  {searchResults.map((item) => (
+                    <Card
+                      key={item.id}
+                      className="p-3 cursor-pointer hover:bg-accent transition-colors"
+                      onClick={() => handleSelectFoodItem(item)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{item.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {item.location && `${item.location} • `}
+                            {item.serving_size}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-primary">{item.calories} cal</p>
+                          <p className="text-xs text-muted-foreground">
+                            P: {item.protein}g • C: {item.total_carb}g • F: {item.total_fat}g
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
 
-            <div>
-              <Label htmlFor="category">Meal Category</Label>
-              <Select
-                value={mealForm.category}
-                onValueChange={(value) => setMealForm({ ...mealForm, category: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Breakfast">Breakfast</SelectItem>
-                  <SelectItem value="Lunch">Lunch</SelectItem>
-                  <SelectItem value="Dinner">Dinner</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {!isSearching && searchQuery && searchResults.length === 0 && !selectedFoodItem && (
+              <div className="text-center py-8 text-muted-foreground">
+                No food items found. Try a different search term.
+              </div>
+            )}
+
+            {/* Selected Food Item */}
+            {selectedFoodItem && (
+              <Card className="p-4 bg-accent">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-semibold">{selectedFoodItem.name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedFoodItem.location && `${selectedFoodItem.location} • `}
+                        {selectedFoodItem.serving_size}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedFoodItem(null);
+                        setSearchQuery("");
+                      }}
+                    >
+                      Change
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Calories</p>
+                      <p className="font-semibold">{selectedFoodItem.calories}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Protein</p>
+                      <p className="font-semibold">{selectedFoodItem.protein}g</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Carbs</p>
+                      <p className="font-semibold">{selectedFoodItem.total_carb}g</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Fat</p>
+                      <p className="font-semibold">{selectedFoodItem.total_fat}g</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div>
+                      <Label htmlFor="servings">Servings</Label>
+                      <Input
+                        id="servings"
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        value={servings}
+                        onChange={(e) => setServings(e.target.value)}
+                        placeholder="1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="category">Meal Category</Label>
+                      <Select value={mealCategory} onValueChange={setMealCategory}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Breakfast">Breakfast</SelectItem>
+                          <SelectItem value="Lunch">Lunch</SelectItem>
+                          <SelectItem value="Dinner">Dinner</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {parseFloat(servings) !== 1 && (
+                    <div className="pt-2 border-t">
+                      <p className="text-sm font-medium mb-2">Total Nutrition ({servings} servings):</p>
+                      <div className="grid grid-cols-4 gap-2 text-center">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Calories</p>
+                          <p className="font-semibold text-primary">
+                            {Math.round(selectedFoodItem.calories * parseFloat(servings))}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Protein</p>
+                          <p className="font-semibold">
+                            {(selectedFoodItem.protein * parseFloat(servings)).toFixed(1)}g
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Carbs</p>
+                          <p className="font-semibold">
+                            {(selectedFoodItem.total_carb * parseFloat(servings)).toFixed(1)}g
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Fat</p>
+                          <p className="font-semibold">
+                            {(selectedFoodItem.total_fat * parseFloat(servings)).toFixed(1)}g
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddMealDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddMeal}>Add Meal</Button>
+            <Button onClick={handleAddMeal} disabled={!selectedFoodItem}>
+              Add Meal
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

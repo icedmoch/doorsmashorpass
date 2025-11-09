@@ -12,7 +12,7 @@ from datetime import datetime
 class UserProfileBase(BaseModel):
     """Base user profile fields"""
     age: int = Field(..., ge=13, le=120, description="User age in years")
-    sex: str = Field(..., pattern="^(M|F)$", description="Sex: M or F")
+    sex: str = Field(..., description="Sex: Male, Female, or Other")
     height_cm: float = Field(..., ge=100, le=250, description="Height in centimeters")
     weight_kg: float = Field(..., ge=30, le=300, description="Weight in kilograms")
     activity_level: int = Field(..., ge=1, le=5, description="Activity level: 1=sedentary, 2=light, 3=moderate, 4=active, 5=very_active")
@@ -27,7 +27,7 @@ class UserProfileCreate(UserProfileBase):
 class UserProfileUpdate(BaseModel):
     """Update user profile request (all fields optional)"""
     age: Optional[int] = Field(None, ge=13, le=120)
-    sex: Optional[str] = Field(None, pattern="^(M|F)$")
+    sex: Optional[str] = None
     height_cm: Optional[float] = Field(None, ge=100, le=250)
     weight_kg: Optional[float] = Field(None, ge=30, le=300)
     activity_level: Optional[int] = Field(None, ge=1, le=5)
@@ -64,8 +64,8 @@ class FoodItemBase(BaseModel):
 class FoodItemCreate(FoodItemBase):
     """Create food item request"""
     location: Optional[str] = Field(None, description="Dining hall location or 'Custom'")
-    date: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="Date in YYYY-MM-DD format")
-    meal_type: Optional[str] = Field(None, pattern="^(Breakfast|Lunch|Dinner)$")
+    date: Optional[str] = Field(None, description="Date in any format")
+    meal_type: Optional[str] = Field(None, description="Meal type: Breakfast, Lunch, or Dinner")
 
 
 class FoodItemResponse(FoodItemBase):
@@ -175,7 +175,7 @@ def calculate_bmr(weight_kg: float, height_cm: float, age: int, sex: str) -> flo
     where s = +5 for males and -161 for females
     """
     bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age)
-    if sex.upper() == 'M':
+    if sex.upper() in ['M', 'MALE']:
         bmr += 5
     else:
         bmr -= 161
