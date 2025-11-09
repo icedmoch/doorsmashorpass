@@ -48,10 +48,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { nutritionApi, type MealEntry as ApiMealEntry, type FoodItem } from "@/lib/api";
-<<<<<<< HEAD
-=======
 import { calculateBMR, calculateTDEE } from "@/lib/calculations";
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
 
 type MealEntryItem = {
   id: string;
@@ -87,9 +84,6 @@ const Nutrition = () => {
     open: false,
     entry: null,
   });
-<<<<<<< HEAD
-  const [userProfile, setUserProfile] = useState<{ tdee?: number; weight_lbs?: number } | null>(null);
-=======
   const [userProfile, setUserProfile] = useState<{
     age?: number;
     sex?: string;
@@ -101,7 +95,6 @@ const Nutrition = () => {
     goal_carbs?: number;
     goal_fat?: number;
   } | null>(null);
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
   const [expandedMealId, setExpandedMealId] = useState<number | null>(null);
 
   // Date selection state
@@ -163,17 +156,6 @@ const Nutrition = () => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-<<<<<<< HEAD
-      // Fetch user profile for TDEE
-      try {
-        const profile = await nutritionApi.getProfile(user.id);
-        // Convert kg to lbs for display
-        const weight_lbs = profile.weight_kg * 2.20462;
-        setUserProfile({ ...profile, weight_lbs });
-      } catch (profileError) {
-        console.warn("Profile not found, using defaults");
-        setUserProfile({ tdee: 2000, weight_lbs: 150 });
-=======
       // Fetch user profile
       try {
         const { data: profile, error } = await supabase
@@ -200,7 +182,6 @@ const Nutrition = () => {
       } catch (profileError) {
         console.warn("Profile not found, using defaults");
         setUserProfile({ weight_lbs: 150 });
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
       }
 
       // Fetch meal entries for selected date using API
@@ -248,16 +229,6 @@ const Nutrition = () => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-<<<<<<< HEAD
-      // Fetch user profile for TDEE
-      try {
-        const profile = await nutritionApi.getProfile(user.id);
-        const weight_lbs = profile.weight_kg * 2.20462;
-        setUserProfile({ ...profile, weight_lbs });
-      } catch (profileError) {
-        console.warn("Profile not found, using defaults");
-        setUserProfile({ tdee: 2000, weight_lbs: 150 });
-=======
       // Fetch user profile
       try {
         const { data: profile, error } = await supabase
@@ -284,7 +255,6 @@ const Nutrition = () => {
       } catch (profileError) {
         console.warn("Profile not found, using defaults");
         setUserProfile({ weight_lbs: 150 });
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
       }
 
       // Fetch meal entries for next 14 days
@@ -495,10 +465,6 @@ const Nutrition = () => {
     { calories: 0, protein: 0, carbs: 0, fat: 0 },
   );
 
-<<<<<<< HEAD
-  const tdeeGoal = userProfile?.tdee || 2000;
-  const proteinGoal = userProfile?.weight_lbs ? Math.round(userProfile.weight_lbs * 0.8) : 150;
-=======
   // Calculate nutritional goals based on user profile
   // Priority: 1) Custom goals from profile, 2) Calculated from TDEE/BMR, 3) Defaults
   const calculateNutritionalGoals = () => {
@@ -552,7 +518,6 @@ const Nutrition = () => {
   };
 
   const nutritionalGoals = calculateNutritionalGoals();
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
 
   const macroData = [
     { name: "Protein", value: Math.round(todayTotals.protein), color: "hsl(155 45% 45%)" },
@@ -681,11 +646,7 @@ const Nutrition = () => {
           <StatCard
             title={selectedDate === new Date().toISOString().split("T")[0] ? "Today's Calories" : "Calories"}
             value={Math.round(todayTotals.calories).toString()}
-<<<<<<< HEAD
-            subtitle={`of ${tdeeGoal} kcal`}
-=======
             subtitle={`of ${nutritionalGoals.calories} kcal`}
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
             icon={Flame}
             trend="up"
             color="primary"
@@ -693,11 +654,7 @@ const Nutrition = () => {
           <StatCard
             title="Protein"
             value={`${Math.round(todayTotals.protein)}g`}
-<<<<<<< HEAD
-            subtitle={`of ${proteinGoal}g goal`}
-=======
             subtitle={`of ${nutritionalGoals.protein}g goal`}
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
             icon={Beef}
             trend="up"
             color="primary"
@@ -705,11 +662,7 @@ const Nutrition = () => {
           <StatCard
             title="Carbs"
             value={`${Math.round(todayTotals.carbs)}g`}
-<<<<<<< HEAD
-            subtitle="Total today"
-=======
             subtitle={`of ${nutritionalGoals.carbs}g goal`}
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
             icon={Cookie}
             trend="up"
             color="secondary"
@@ -717,11 +670,7 @@ const Nutrition = () => {
           <StatCard
             title="Fat"
             value={`${Math.round(todayTotals.fat)}g`}
-<<<<<<< HEAD
-            subtitle="Total today"
-=======
             subtitle={`of ${nutritionalGoals.fat}g goal`}
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
             icon={Droplet}
             trend="up"
             color="accent"
@@ -797,58 +746,34 @@ const Nutrition = () => {
                 <div className="flex justify-between mb-2">
                   <span className="text-sm font-semibold">Calories</span>
                   <span className="text-sm font-bold text-primary">
-<<<<<<< HEAD
-                    {Math.round(todayTotals.calories)} / {tdeeGoal}
-=======
                     {Math.round(todayTotals.calories)} / {nutritionalGoals.calories}
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
                   </span>
                 </div>
                 <div className="h-3 bg-muted/50 rounded-full overflow-hidden border border-border/50">
                   <div
                     className="h-full bg-gradient-to-r from-primary via-primary to-primary/90 rounded-full transition-all duration-500"
-<<<<<<< HEAD
-                    style={{ width: `${Math.min((todayTotals.calories / tdeeGoal) * 100, 100)}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {Math.round((todayTotals.calories / tdeeGoal) * 100)}% of daily goal
-=======
                     style={{ width: `${Math.min((todayTotals.calories / nutritionalGoals.calories) * 100, 100)}%` }}
                   ></div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {Math.round((todayTotals.calories / nutritionalGoals.calories) * 100)}% of daily goal
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
                 </p>
               </div>
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="text-sm font-semibold">Protein</span>
                   <span className="text-sm font-bold text-primary">
-<<<<<<< HEAD
-                    {Math.round(todayTotals.protein)} / {proteinGoal}g
-=======
                     {Math.round(todayTotals.protein)} / {nutritionalGoals.protein}g
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
                   </span>
                 </div>
                 <div className="h-3 bg-muted/50 rounded-full overflow-hidden border border-border/50">
                   <div
                     className="h-full bg-gradient-to-r from-primary via-primary to-primary/90 rounded-full transition-all duration-500"
-<<<<<<< HEAD
-                    style={{ width: `${Math.min((todayTotals.protein / proteinGoal) * 100, 100)}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {Math.round((todayTotals.protein / proteinGoal) * 100)}% of daily goal
-=======
                     style={{ width: `${Math.min((todayTotals.protein / nutritionalGoals.protein) * 100, 100)}%` }}
                   ></div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {Math.round((todayTotals.protein / nutritionalGoals.protein) * 100)}% of daily goal
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
                 </p>
               </div>
             </div>
@@ -860,19 +785,11 @@ const Nutrition = () => {
                 </div>
                 <div>
                   <p className="font-semibold text-sm mb-1">
-<<<<<<< HEAD
-                    {todayTotals.calories < tdeeGoal ? "Keep going!" : "Great job!"}
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {todayTotals.calories < tdeeGoal
-                      ? `You have ${Math.round(tdeeGoal - todayTotals.calories)} calories left for today.`
-=======
                     {todayTotals.calories < nutritionalGoals.calories ? "Keep going!" : "Great job!"}
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {todayTotals.calories < nutritionalGoals.calories
                       ? `You have ${Math.round(nutritionalGoals.calories - todayTotals.calories)} calories left for today.`
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
                       : "You've reached your calorie goal for today!"}
                   </p>
                 </div>

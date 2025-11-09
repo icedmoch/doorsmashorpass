@@ -2,7 +2,7 @@
 
 # Start backend server
 Write-Host "Starting backend server..." -ForegroundColor Green
-Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd backend; uv venv; .venv\Scripts\activate; uv pip install -r requirements.txt; python main.py"
+Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd backend; .venv\Scripts\activate; uv pip install -r requirements.txt; python main.py"
 
 # Wait a moment for backend to start
 Start-Sleep -Seconds 2

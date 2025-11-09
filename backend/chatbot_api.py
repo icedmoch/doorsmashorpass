@@ -5,10 +5,12 @@ Stores chat history in Supabase and uses current date for menu queries
 Integrated with Nutrition API and Orders API via HTTP
 """
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
 from dataclasses import dataclass
 from datetime import datetime
+from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
 from typing import Optional, List
@@ -16,8 +18,6 @@ from supabase import create_client, Client
 import httpx
 
 load_dotenv()
-
-app = FastAPI(title="DoorSmash AI Chatbot API")
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -32,9 +32,23 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 NUTRITION_API_BASE = os.getenv("NUTRITION_API_BASE", "http://localhost:8000")
 ORDERS_API_BASE = os.getenv("ORDERS_API_BASE", "http://localhost:8000")
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     os.environ.setdefault("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
+    yield
+    # Shutdown (if needed)
+
+app = FastAPI(title="DoorSmash AI Chatbot API", lifespan=lifespan)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class UserLocation(BaseModel):
     latitude: float
