@@ -28,7 +28,7 @@ export const DeliveryMap = ({ lat, lng, address }: DeliveryMapProps) => {
   }, []);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 relative z-0">
       <div className="p-4 bg-muted/50 border rounded-lg">
         <div className="flex items-start gap-3 mb-3">
           <MapPin className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
@@ -41,12 +41,12 @@ export const DeliveryMap = ({ lat, lng, address }: DeliveryMapProps) => {
           </div>
         </div>
         
-        <div className="h-[300px] w-full rounded-lg overflow-hidden mb-3">
+        <div className="h-[300px] w-full rounded-lg overflow-hidden mb-3 relative z-0">
           <MapContainer 
             center={position} 
             zoom={15} 
             scrollWheelZoom={false}
-            style={{ height: '100%', width: '100%' }}
+            style={{ height: '100%', width: '100%', zIndex: 0 }}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
