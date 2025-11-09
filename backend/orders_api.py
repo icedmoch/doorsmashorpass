@@ -2,12 +2,12 @@
 Orders API with FastAPI and Supabase
 Provides endpoints for managing food orders from UMass dining halls
 """
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 import os
 from dotenv import load_dotenv
 import uuid
@@ -36,7 +36,22 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in .env file")
 
+# Base client for operations that don't need auth
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Helper to get authenticated Supabase client
+def get_supabase_client(authorization: Optional[str] = None) -> Client:
+    """Get Supabase client with user auth token if provided"""
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.replace("Bearer ", "")
+        # Create a new client instance with the user's token
+        # This allows RLS policies to work correctly
+        options = ClientOptions(
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        client = create_client(SUPABASE_URL, SUPABASE_KEY, options=options)
+        return client
+    return supabase
 
 
 # ==================== PYDANTIC MODELS ====================
@@ -113,20 +128,21 @@ async def calculate_and_update_order_totals(order_id: str):
 
 # ==================== API ENDPOINTS ====================
 
-@app.get("/")
-async def root():
-    return {
-        "message": "DoorSmash Orders API",
-        "version": "1.0.0",
-        "endpoints": {
-            "orders": "/orders",
-            "docs": "/docs"
-        }
-    }
+# Root endpoint commented out - handled by main.py
+# @app.get("/")
+# async def root():
+#     return {
+#         "message": "DoorSmash Orders API",
+#         "version": "1.0.0",
+#         "endpoints": {
+#             "orders": "/orders",
+#             "docs": "/docs"
+#         }
+#     }
 
 
 @app.post("/orders", response_model=OrderResponse, status_code=201)
-async def create_order(order: OrderCreate):
+async def create_order(order: OrderCreate, authorization: Optional[str] = Header(None)):
     """
     Create a new order with items
 
@@ -134,8 +150,11 @@ async def create_order(order: OrderCreate):
     - Creates order and order items
     - Calculates nutritional totals
     """
+    # Get authenticated Supabase client
+    client = get_supabase_client(authorization)
+    
     # Validate user exists
-    user_response = supabase.table("profiles").select("id").eq("id", order.user_id).execute()
+    user_response = client.table("profiles").select("id").eq("id", order.user_id).execute()
     if not user_response.data:
         raise HTTPException(status_code=404, detail=f"User {order.user_id} not found")
 
@@ -148,7 +167,7 @@ async def create_order(order: OrderCreate):
         "status": "pending"
     }
 
-    order_response = supabase.table("orders").insert(order_data).execute()
+    order_response = client.table("orders").insert(order_data).execute()
     if not order_response.data:
         raise HTTPException(status_code=500, detail="Failed to create order")
 
@@ -173,7 +192,7 @@ async def create_order(order: OrderCreate):
             "fat": float(food_item.get("total_fat", 0))
         }
 
-        item_response = supabase.table("order_items").insert(item_data).execute()
+        item_response = client.table("order_items").insert(item_data).execute()
         if item_response.data:
             order_items.append(item_response.data[0])
 

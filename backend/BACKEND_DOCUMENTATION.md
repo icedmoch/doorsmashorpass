@@ -1,14 +1,7 @@
-<<<<<<< HEAD
-# StudentEats Backend Documentation
-
-## Overview
-The StudentEats backend is a comprehensive FastAPI-based service that provides nutrition tracking, food ordering, and AI chatbot capabilities for college students. The system is built with a modular architecture and integrates with Supabase for data persistence.
-=======
 # Door Smash or Pass Backend Documentation
 
 ## Overview
 The Door Smash or Pass backend is a comprehensive FastAPI-based service that provides nutrition tracking, food ordering, and AI chatbot capabilities for college students. The system is built with a modular architecture and integrates with Supabase for data persistence.
->>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
 
 ---
 
