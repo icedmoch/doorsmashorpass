@@ -2,6 +2,10 @@ from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 import json
 import asyncio
+import os
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+from supabase import create_client, Client
 
 
 async def get_available_dates(page, base_url):
@@ -255,19 +259,105 @@ def print_summary(all_menus):
     print(f"\n{'='*60}")
     print("OVERALL SUMMARY")
     print(f"{'='*60}")
-    
+
     for hall_name, menus in all_menus.items():
         print(f"\n{hall_name}: {len(menus)} days")
 
 
+def get_supabase_client() -> Client:
+    """Initialize Supabase client with environment variables"""
+    load_dotenv()
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+
+    if not url or not key:
+        raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in .env file")
+
+    return create_client(url, key)
+
+
+def get_past_week_dates() -> list[str]:
+    """
+    Get list of dates for the past 7 days in the format used by dining hall menus
+    Returns dates from 7 days ago up to yesterday (EXCLUDES today)
+
+    Example formats that may be in the database:
+    - "Fri November 07, 2025"
+    - "2025-11-08"
+    """
+    today = datetime.now()
+    dates = []
+
+    # Start from 1 day ago (yesterday) and go back 7 days
+    # This excludes today's data
+    for i in range(1, 8):
+        date = today - timedelta(days=i)
+        # Format 1: "Fri November 07, 2025" (used by scraper)
+        formatted_date = date.strftime("%a %B %d, %Y")
+        dates.append(formatted_date)
+
+        # Format 2: "2025-11-08" (ISO format backup)
+        iso_date = date.strftime("%Y-%m-%d")
+        dates.append(iso_date)
+
+    return dates
+
+
+def delete_past_week_data(supabase: Client):
+    """
+    Delete food items from the past 7 days from Supabase (excludes today)
+    Returns the number of items deleted
+    """
+    print("\n" + "="*60)
+    print("DELETING PAST WEEK'S DATA (EXCLUDING TODAY)")
+    print("="*60)
+
+    # Get dates to delete
+    dates_to_delete = get_past_week_dates()
+    print(f"Deleting data for past 7 days (Nov 1-7, excluding today Nov 8)")
+    print(f"Date formats being deleted: {dates_to_delete[:4]}...")  # Show first 4 examples
+
+    try:
+        # Count items before deletion
+        count_response = supabase.table("food_items").select("id", count="exact").in_("date", dates_to_delete).execute()
+        items_to_delete = count_response.count if hasattr(count_response, 'count') else 0
+
+        print(f"Found {items_to_delete} items to delete from past week")
+
+        if items_to_delete == 0:
+            print("No items found to delete")
+            return 0
+
+        # Delete items
+        delete_response = supabase.table("food_items").delete().in_("date", dates_to_delete).execute()
+
+        print(f"[SUCCESS] Deleted {items_to_delete} food items from past week")
+        return items_to_delete
+
+    except Exception as e:
+        print(f"Error deleting past week's data: {e}")
+        raise
+
+
 async def main():
     print("UMass Dining Menu Scraper - All 4 Dining Halls")
-    
+
+    # Step 1: Scrape all menus
     all_menus = await get_all_dining_hall_menus()
-    
+
     if all_menus:
         print_summary(all_menus)
         save_menus_to_json(all_menus)
+
+        # Step 2: Delete past week's data from Supabase (after successful scraping)
+        try:
+            supabase = get_supabase_client()
+            deleted_count = delete_past_week_data(supabase)
+            print(f"\n[SUCCESS] Cleanup complete: {deleted_count} old items removed from database")
+        except Exception as e:
+            print(f"\n[WARNING] Failed to delete past week's data: {e}")
+            print("  (New menu data was still saved to JSON)")
     else:
         print("No menus were scraped.")
 

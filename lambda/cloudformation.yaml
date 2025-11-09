@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'UMass Dining Hall Menu Scraper - Lambda Function with EventBridge Scheduler'
+
+Parameters:
+  SupabaseUrl:
+    Type: String
+    Description: Supabase project URL
+    NoEcho: true
+
+  SupabaseKey:
+    Type: String
+    Description: Supabase service role key
+    NoEcho: true
+
+Resources:
+  # IAM Role for Lambda
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+
+  # Lambda Function
+  MenuScraperFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      PackageType: Image
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 900
+      MemorySize: 2048
+      EphemeralStorage:
+        Size: 2048
+      Environment:
+        Variables:
+          SUPABASE_URL: !Ref SupabaseUrl
+          SUPABASE_KEY: !Ref SupabaseKey
+      Code:
+        ImageUri: 904233117895.dkr.ecr.us-east-1.amazonaws.com/umass-dining-scraper:latest
+      Description: 'Weekly UMass dining hall menu scraper'
+      Tags:
+        - Key: Project
+          Value: UMassDiningMenuScraper
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # CloudWatch Log Group
+  MenuScraperLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${MenuScraperFunction}'
+      RetentionInDays: 7  # Keep logs for 7 days
+
+  # EventBridge Rule - Run every Saturday at 11:00 AM EST
+  WeeklyScheduleRule:
+    Type: AWS::Events::Rule
+    DependsOn: MenuScraperFunction
+    Properties:
+      Name: !Sub '${AWS::StackName}-weekly-schedule'
+      Description: 'Trigger menu scraper every Saturday at 11:00 AM EST'
+      ScheduleExpression: 'cron(0 16 ? * SAT *)'
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt MenuScraperFunction.Arn
+          Id: MenuScraperTarget
+          Input: |
+            {
+              "source": "eventbridge.schedule",
+              "detail-type": "Scheduled Event",
+              "detail": {
+                "message": "Weekly menu scraping triggered"
+              }
+            }
+
+  # Permission for EventBridge to invoke Lambda
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref MenuScraperFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt WeeklyScheduleRule.Arn
+
+Outputs:
+  LambdaFunctionArn:
+    Description: ARN of the Lambda function
+    Value: !GetAtt MenuScraperFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-function-arn'
+
+  LambdaFunctionName:
+    Description: Name of the Lambda function
+    Value: !Ref MenuScraperFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-function-name'
+
+  EventBridgeRuleArn:
+    Description: ARN of the EventBridge rule
+    Value: !GetAtt WeeklyScheduleRule.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-rule-arn'
+
+  LogGroupName:
+    Description: CloudWatch Log Group name
+    Value: !Ref MenuScraperLogGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-log-group'
