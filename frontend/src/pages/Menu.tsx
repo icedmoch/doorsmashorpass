@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import MenuItemCard from "@/components/MenuItemCard";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Search, ShoppingCart, Minus, Plus, Trash2 } from "lucide-react";
+import { Search, ShoppingCart, Minus, Plus, Trash2, Loader2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import {
   Select,
@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { nutritionApi, type FoodItem } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 const Menu = () => {
   const navigate = useNavigate();
@@ -22,91 +24,98 @@ const Menu = () => {
   const [selectedHall, setSelectedHall] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [menuItems, setMenuItems] = useState<FoodItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
   
-  const diningHalls = [
+  const diningHalls = useMemo(() => [
     { id: "all", name: "All Dining Halls" },
     { id: "worcester", name: "Worcester" },
     { id: "franklin", name: "Franklin" },
     { id: "hampshire", name: "Hampshire" },
     { id: "berkshire", name: "Berkshire" },
-  ];
+  ], []);
   
   const filters = ["Vegetarian", "Vegan", "Gluten-Free", "Grab & Go", "High Protein"];
-  
-  const menuItems = [
-    {
-      id: "1",
-      name: "Grilled Chicken Bowl",
-      calories: 520,
-      protein: 45,
-      carbs: 42,
-      fat: 18,
-      allergens: ["Dairy"],
-      available: true,
-      category: "Main Dish",
-      diningHall: "Worcester",
-    },
-    {
-      id: "2",
-      name: "Mediterranean Wrap",
-      calories: 380,
-      protein: 22,
-      carbs: 48,
-      fat: 12,
-      allergens: ["Gluten", "Dairy"],
-      available: true,
-      category: "Grab & Go",
-      diningHall: "Franklin",
-    },
-    {
-      id: "3",
-      name: "Quinoa Power Salad",
-      calories: 340,
-      protein: 14,
-      carbs: 52,
-      fat: 10,
-      allergens: [],
-      available: true,
-      category: "Salad",
-      diningHall: "Hampshire",
-    },
-    {
-      id: "4",
-      name: "BBQ Pulled Pork Sandwich",
-      calories: 680,
-      protein: 38,
-      carbs: 62,
-      fat: 28,
-      allergens: ["Gluten"],
-      available: false,
-      category: "Main Dish",
-      diningHall: "Berkshire",
-    },
-    {
-      id: "5",
-      name: "Veggie Stir Fry",
-      calories: 280,
-      protein: 12,
-      carbs: 38,
-      fat: 8,
-      allergens: ["Soy"],
-      available: true,
-      category: "Vegetarian",
-      diningHall: "Worcester",
-    },
-    {
-      id: "6",
-      name: "Protein Smoothie Bowl",
-      calories: 420,
-      protein: 32,
-      carbs: 54,
-      fat: 8,
-      allergens: ["Dairy", "Tree Nuts"],
-      available: true,
-      category: "Grab & Go",
-      diningHall: "Franklin",
-    },
-  ];
+
+  // Fetch food items on component mount or when filters change
+  const fetchFoodItems = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      let items: FoodItem[];
+      
+      // Always filter by date - search with empty query returns all items for that date
+      console.log('Fetching items for date:', selectedDate, 'query:', searchQuery || '(all)');
+      items = await nutritionApi.searchFoodItems(searchQuery || "", 100, selectedDate);
+      
+      console.log('Fetched items:', items.length);
+
+      // Filter by dining hall if not "all"
+      if (selectedHall !== "all") {
+        const hallName = diningHalls.find(h => h.id === selectedHall)?.name;
+        items = items.filter(item => 
+          item.location?.toLowerCase() === hallName?.toLowerCase()
+        );
+        console.log('After dining hall filter:', items.length);
+      }
+
+      setMenuItems(items);
+    } catch (error) {
+      console.error("Error fetching food items:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load menu items",
+        variant: "destructive",
+      });
+      setMenuItems([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, selectedHall, selectedDate, diningHalls]);
+
+  useEffect(() => {
+    fetchFoodItems();
+  }, [fetchFoodItems]);
+
+  useEffect(() => {
+    const loadAvailableDates = async () => {
+      try {
+        const { dates } = await nutritionApi.getAvailableDates();
+        console.log('Raw dates from API:', dates);
+        
+        // Dates come in format "Mon November 10, 2025" - convert to YYYY-MM-DD
+        const parsedDates = dates.map(dateStr => {
+          try {
+            // Parse the date string and convert to YYYY-MM-DD format
+            const date = new Date(dateStr);
+            if (!isNaN(date.getTime())) {
+              return date.toISOString().split("T")[0];
+            }
+            return null;
+          } catch {
+            return null;
+          }
+        }).filter(Boolean) as string[];
+        
+        // Sort dates chronologically
+        parsedDates.sort();
+        console.log('Parsed and sorted dates:', parsedDates);
+        
+        setAvailableDates(parsedDates);
+        
+        // If current selected date has no data, switch to first available date
+        const today = new Date().toISOString().split("T")[0];
+        if (parsedDates.length > 0 && !parsedDates.includes(today)) {
+          console.log('Today has no data, switching to:', parsedDates[0]);
+          setSelectedDate(parsedDates[0]);
+        }
+      } catch (error) {
+        console.error("Error loading available dates:", error);
+      }
+    };
+    loadAvailableDates();
+  }, []);
   
   const toggleFilter = (filter: string) => {
     setSelectedFilters(prev =>
@@ -116,12 +125,19 @@ const Menu = () => {
     );
   };
 
-  // Filter menu items based on selected dining hall and search query
-  const filteredMenuItems = menuItems.filter(item => {
-    const matchesHall = selectedHall === "all" || item.diningHall.toLowerCase() === diningHalls.find(h => h.id === selectedHall)?.name.toLowerCase();
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesHall && matchesSearch;
-  });
+  // Transform API FoodItem to MenuItemCard props format
+  const transformedMenuItems = menuItems.map(item => ({
+    id: item.id.toString(),
+    name: item.name,
+    calories: item.calories,
+    protein: item.protein,
+    carbs: item.total_carb,
+    fat: item.total_fat,
+    allergens: [] as string[],
+    available: true,
+    category: item.meal_type || "Main Dish",
+    diningHall: item.location || "Unknown",
+  }));
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -138,7 +154,17 @@ const Menu = () => {
         
         {/* Filters */}
         <Card className="p-6 mb-6 shadow-md">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {availableDates.length > 0 && (
+            <div className="mb-4 p-3 bg-muted/50 rounded-md">
+              <p className="text-sm text-muted-foreground">
+                📅 Menu available from{' '}
+                <strong>{new Date(availableDates[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong>
+                {' '}to{' '}
+                <strong>{new Date(availableDates[availableDates.length - 1] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong>
+              </p>
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Select value={selectedHall} onValueChange={setSelectedHall}>
               <SelectTrigger>
                 <SelectValue placeholder="Select dining hall" />
@@ -149,6 +175,31 @@ const Menu = () => {
                     {hall.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedDate} onValueChange={setSelectedDate}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select date" />
+              </SelectTrigger>
+              <SelectContent>
+                {(() => {
+                  // Generate next 14 days
+                  const dates = [];
+                  for (let i = 0; i < 14; i++) {
+                    const date = new Date();
+                    date.setDate(date.getDate() + i);
+                    const dateStr = date.toISOString().split("T")[0];
+                    const hasData = availableDates.includes(dateStr);
+                    const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    dates.push({ value: dateStr, label, hasData });
+                  }
+                  return dates.map(date => (
+                    <SelectItem key={date.value} value={date.value} disabled={!date.hasData}>
+                      {date.label} {date.hasData ? '✓' : '(no menu)'}
+                    </SelectItem>
+                  ));
+                })()}
               </SelectContent>
             </Select>
             
@@ -167,13 +218,24 @@ const Menu = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Menu Grid */}
           <div className="lg:col-span-3">
-            {filteredMenuItems.length === 0 ? (
+            {isLoading ? (
               <Card className="p-8 text-center">
-                <p className="text-muted-foreground">No items found matching your criteria</p>
+                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+                <p className="text-muted-foreground">Loading menu items...</p>
+              </Card>
+            ) : transformedMenuItems.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-muted-foreground mb-2">No items found matching your criteria</p>
+                {!availableDates.includes(selectedDate) && availableDates.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No menu available for {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.
+                    Try selecting a date with a ✓ checkmark.
+                  </p>
+                )}
               </Card>
             ) : (
               <div className="space-y-4">
-                {filteredMenuItems.map(item => (
+                {transformedMenuItems.map(item => (
                   <MenuItemCard key={item.id} {...item} />
                 ))}
               </div>
