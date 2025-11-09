@@ -32,17 +32,14 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 NUTRITION_API_BASE = os.getenv("NUTRITION_API_BASE", "http://localhost:8000")
 ORDERS_API_BASE = os.getenv("ORDERS_API_BASE", "http://localhost:8000")
 
-<<<<<<< HEAD
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-=======
-@app.on_event("startup")
-async def startup():
->>>>>>> dbda1f1fece40435be928702eaaaedc169b10ca1
+    # Startup - Set Google API key for Gemini
     os.environ.setdefault("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
+    print("✅ Chatbot API startup: Google API key configured")
     yield
-    # Shutdown (if needed)
+    # Shutdown - Cleanup if needed
+    print("👋 Chatbot API shutdown")
 
 app = FastAPI(title="DoorSmash AI Chatbot API", lifespan=lifespan)
 
@@ -166,8 +163,8 @@ def is_weekend(date_str: str) -> bool:
 class ChatbotDeps:
     user_id: str
     chat_history: List[dict]
+    http_client: httpx.AsyncClient
     user_location: Optional[dict] = None  # {latitude: float, longitude: float}
-    http_client: httpx.AsyncClient = None  # HTTP client for API calls
 
 # Create the agent with Gemini
 agent = Agent(
@@ -1088,8 +1085,8 @@ async def chat(request: ChatRequest):
             deps = ChatbotDeps(
                 user_id=request.user_id,
                 chat_history=chat_history,
-                user_location=user_location_dict,
-                http_client=http_client
+                http_client=http_client,
+                user_location=user_location_dict
             )
 
             result = await agent.run(request.message, deps=deps)
