@@ -19,7 +19,10 @@
       "Bash(timeout /t 5)",
       "Bash(.venv/Scripts/python.exe:*)",
       "Bash(test:*)",
-      "mcp__supabase__get_advisors"
+      "mcp__supabase__get_advisors",
+      "Bash(dir:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
