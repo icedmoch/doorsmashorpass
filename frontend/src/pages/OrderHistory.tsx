@@ -13,6 +13,7 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { MealTrackingDialog } from "@/components/MealTrackingDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ordersApi, type Order as ApiOrder, type OrderItemDetail } from "@/lib/api";
 
 type OrderStatus = 'pending' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -112,37 +113,13 @@ const OrderHistory = () => {
     try {
       setIsLoading(true);
 
-      // Fetch orders
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+      // Fetch orders using API
+      const ordersData = await ordersApi.getUserOrders(userId);
 
-      if (ordersError) throw ordersError;
-
-      // Fetch order items for each order
-      const ordersWithItems = await Promise.all(
-        (ordersData || []).map(async (order) => {
-          const { data: items, error: itemsError } = await supabase
-            .from('order_items')
-            .select('*')
-            .eq('order_id', order.id);
-
-          if (itemsError) throw itemsError;
-
-          return {
-            ...order,
-            status: order.status as OrderStatus,
-            items: items || [],
-          };
-        })
-      );
-
-      setOrders(ordersWithItems as any);
+      setOrders(ordersData);
 
       // Check if there's a recently delivered order to prompt meal tracking
-      const recentlyDelivered = ordersWithItems.find(
+      const recentlyDelivered = ordersData.find(
         order => order.status === 'delivered' && 
         new Date(order.updated_at).getTime() > Date.now() - 60000 && // Delivered in last minute
         order.items && order.items.length > 0
@@ -151,14 +128,14 @@ const OrderHistory = () => {
       if (recentlyDelivered && !mealTrackingDialog.open) {
         setMealTrackingDialog({
           open: true,
-          order: recentlyDelivered as any,
+          order: recentlyDelivered,
         });
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({
         title: "Error",
-        description: "Failed to load order history",
+        description: error instanceof Error ? error.message : "Failed to load order history",
         variant: "destructive",
       });
     } finally {
