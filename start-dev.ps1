@@ -1,3 +1,19 @@
+# IMPORTANT: need to have set .venv in backend already
+# the command to create it is: cd backend && python -m venv .venv && cd ..
+
+# Kill existing processes on ports 8000, 8002, and 8080
+$ports = @(8000, 8002, 5173)
+foreach ($port in $ports) {
+    $processes = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | ForEach-Object {
+        Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
+    } | Where-Object { $_ -ne $null }
+
+    foreach ($process in $processes) {
+        Write-Host "Killing process $($process.Id) on port $port" -ForegroundColor Yellow
+        Stop-Process -Id $process.Id -Force
+    }
+}
+
 # Start Backend, Chatbot, and Frontend
 
 # Start backend server
@@ -21,6 +37,6 @@ Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd frontend; npm run de
 Write-Host "`nAll servers are starting..." -ForegroundColor Yellow
 Write-Host "Backend: http://localhost:8000" -ForegroundColor Cyan
 Write-Host "Chatbot: http://localhost:8002" -ForegroundColor Cyan
-Write-Host "Frontend: http://localhost:5173" -ForegroundColor Cyan
+Write-Host "Frontend: http://localhost:8080" -ForegroundColor Cyan
 Write-Host "API Docs: http://localhost:8000/docs" -ForegroundColor Cyan
 Write-Host "Chatbot Docs: http://localhost:8002/docs" -ForegroundColor Cyan
