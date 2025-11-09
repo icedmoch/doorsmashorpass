@@ -63,6 +63,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
+    timestamp: str
 
 # Helper functions for chat history
 async def save_chat_message(user_id: str, role: str, message: str):
@@ -170,7 +171,7 @@ class ChatbotDeps:
 agent = Agent(
     'google-gla:gemini-2.5-flash',
     deps_type=ChatbotDeps,
-    system_prompt="""You are a helpful UMass dining hall assistant for DoorSmash.
+    system_prompt="""You are a helpful UMass dining hall assistant for DoorSmash with FULL ORDER MANAGEMENT capabilities.
 
 CRITICAL FORMATTING RULE: 
 - NEVER use emojis, emoticons, or special Unicode characters in your responses
@@ -178,11 +179,44 @@ CRITICAL FORMATTING RULE:
 - This is required for system compatibility
 - Violation will cause system errors
 
-YOUR ROLE:
-1. ORDERS - Browse dining hall menus, create/manage food delivery orders
-2. NUTRITION - Track meals, monitor calories/macros, manage health goals
-3. PROFILE - Help users set dietary preferences, goals, and health metrics
-4. INTEGRATION - Offer to track ordered food in nutrition log (always ask first!)
+CONVERSATION CONTEXT & MEMORY:
+- You have access to the user's recent chat history - USE IT!
+- Remember what the user has already told you (preferences, restrictions, orders)
+- Don't ask for information they've already provided in this conversation
+- Reference previous messages to maintain continuity
+- If user mentions "my last order" or "the eggs I ordered", look at chat history
+- Build on previous conversation naturally
+
+USER PROFILE & PERSONALIZATION:
+- Access user's nutrition profile using get_user_nutrition_profile tool
+- Use their height, weight, age, sex to provide personalized recommendations
+- Reference their BMR/TDEE when discussing calorie goals
+- Respect their dietary preferences (vegetarian, vegan, allergies, etc.)
+- Align suggestions with their stated goals (weight loss, muscle gain, etc.)
+- Use their activity level to adjust nutrition recommendations
+- When they ask "what should I eat?", consider their profile first!
+
+YOUR COMPREHENSIVE CAPABILITIES:
+1. MENU BROWSING - Search dining hall menus by location, date, meal type
+2. ORDER CREATION - Complete order flow with delivery/pickup options
+3. ORDER TRACKING - View, filter, and manage all user orders
+4. ORDER MODIFICATIONS - Update status, add/remove items, cancel orders
+5. ORDER ANALYTICS - Statistics, insights, favorite items, spending patterns
+6. NUTRITION TRACKING - Log meals, track calories/macros, manage health goals
+7. PROFILE MANAGEMENT - Set dietary preferences, goals, health metrics
+
+COMPLETE ORDER MANAGEMENT FEATURES:
+- View ALL orders with full details (items, nutrition, delivery info, status)
+- Filter orders by status (pending, preparing, ready, out_for_delivery, delivered, completed, cancelled)
+- Get detailed breakdown of any specific order
+- Update order status through conversation
+- Add or remove items from existing orders
+- Track order history and patterns
+- Analyze nutritional trends across orders
+- View favorite/most-ordered items
+- Check delivery preferences (delivery vs pickup)
+- Access GPS coordinates for delivery locations
+- Review special instructions and notes
 
 ORDER CREATION PROCESS - FOLLOW THIS STRICTLY:
 When a user wants to create an order, you MUST collect ALL information before calling create_order:
@@ -212,6 +246,19 @@ CONVERSATION FLOW FOR ORDERS:
 4. Confirm order summary → Show all details before creating
 5. Create order → Only after you have all required info
 
+ADVANCED ORDER QUERIES YOU CAN HANDLE:
+- "Show me all my pending orders"
+- "What's my order history from this week?"
+- "How much have I spent on orders?"
+- "What are my top 3 favorite items?"
+- "Show me order #abc123 details"
+- "Update order #abc123 status to preparing"
+- "Add scrambled eggs to my last order"
+- "Cancel my pending order"
+- "Do I order delivery or pickup more?"
+- "What's my average calorie per order?"
+- "Show me my order statistics"
+
 IMPORTANT BEHAVIORS:
 - **ALWAYS ask follow-up questions** - Don't assume information!
 - Be conversational - don't ask everything at once
@@ -220,26 +267,16 @@ IMPORTANT BEHAVIORS:
 - Help users make healthy choices
 - Remember conversation context to avoid repeating questions
 - If creating order fails due to missing info, ask for it specifically
+- Proactively offer insights from order history
+- Suggest tracking ordered food in nutrition log
 
-EXAMPLE CONVERSATION:
-User: "I want to order Scrambled Eggs"
-You: "Great choice! The Scrambled Eggs have 110 cal and 10.6g protein. Where would you like this delivered?"
-User: "Southwest Dorms"
-You: "Perfect! Can you share your current location? This helps our drivers find you faster. (It's optional if you prefer not to)"
-User: "Sure, lat 42.3886, long -72.5292"
-You: "Thanks! Any dietary restrictions or special requests?"
-User: "No peanuts please"
-You: "Got it! When would you like delivery? ASAP or a specific time?"
-User: "ASAP"
-You: "Perfect! Here's your order summary: [details]. Should I place this order?"
-
-Order statuses: 'pending' (default) or 'delivered'
+Order statuses: pending, preparing, ready, out_for_delivery, delivered, completed, cancelled
 Auto-calculated fields: total_calories, total_protein, total_carbs, total_fat"""
 )
 
 @agent.system_prompt
 def add_current_date(ctx: RunContext[ChatbotDeps]) -> str:
-    """Add current date and location info to system prompt dynamically"""
+    """Add current date, location, chat history, and user profile info to system prompt dynamically"""
     current_date = get_current_date_formatted()
     # Get available dates from database
     try:
@@ -255,12 +292,85 @@ def add_current_date(ctx: RunContext[ChatbotDeps]) -> str:
         lon = ctx.deps.user_location.get('longitude')
         location_info = f"\n- User's current location: ({lat:.4f}, {lon:.4f}) - AUTOMATICALLY CAPTURED!"
 
+    # Fetch user profile proactively from Supabase
+    profile_info = ""
+    try:
+        profile_response = supabase.table("profiles")\
+            .select("dietary_preferences, goals, goal_calories, goal_protein")\
+            .eq("id", ctx.deps.user_id)\
+            .single()\
+            .execute()
+        
+        if profile_response.data:
+            profile = profile_response.data
+            dietary_prefs = profile.get('dietary_preferences', [])
+            goals = profile.get('goals', '')
+            goal_calories = profile.get('goal_calories')
+            goal_protein = profile.get('goal_protein')
+            
+            # Debug logging
+            print(f"[Profile Fetch] User ID: {ctx.deps.user_id}")
+            print(f"[Profile Fetch] Dietary Preferences: {dietary_prefs}")
+            print(f"[Profile Fetch] Goals: {goals}")
+            print(f"[Profile Fetch] Goal Calories: {goal_calories}")
+            
+            has_any_preferences = (dietary_prefs and len(dietary_prefs) > 0) or goals or goal_calories
+            
+            if has_any_preferences:
+                profile_info = "\n\nUSER'S PROFILE (ALWAYS RESPECT THESE):"
+                
+                if dietary_prefs and len(dietary_prefs) > 0:
+                    profile_info += f"\n- Dietary Restrictions: {', '.join(dietary_prefs)}"
+                    profile_info += "\n  IMPORTANT: Filter out food items that violate these restrictions!"
+                
+                if goal_calories:
+                    profile_info += f"\n- Daily Calorie Goal: {goal_calories} kcal"
+                
+                if goal_protein:
+                    profile_info += f"\n- Daily Protein Goal: {goal_protein}g"
+                
+                if goals:
+                    profile_info += f"\n- Personal Goals: {goals}"
+                
+                profile_info += "\n\nWhen suggesting meals, ALWAYS consider these preferences first!"
+                print(f"[Profile Fetch] Profile info added to system prompt: YES")
+            else:
+                # User has no preferences set
+                profile_info = "\n\nUSER'S PROFILE: No dietary restrictions or preferences set yet."
+                profile_info += "\n- Suggest the user complete their profile for personalized recommendations"
+                profile_info += "\n- If they mention any dietary needs (vegetarian, vegan, allergies), remember them for this session"
+                profile_info += "\n- Offer to help them track their preferences once they share them"
+                print(f"[Profile Fetch] Profile info added to system prompt: NO (no preferences set)")
+    except Exception as e:
+        print(f"Error fetching user profile in system prompt: {e}")
+        profile_info = "\n\nNote: Use get_user_nutrition_profile tool if you need detailed user information."
+
+    # Add chat history context
+    chat_context = ""
+    if ctx.deps.chat_history:
+        # Format recent conversation for context (show last 10 messages)
+        history_lines = []
+        for msg in ctx.deps.chat_history[-10:]:  # Last 10 messages for context
+            role = "User" if msg.get('role') == 'user' else "Assistant"
+            content = msg.get('message', '')[:150]  # Truncate very long messages
+            history_lines.append(f"  {role}: {content}")
+        
+        if history_lines:
+            chat_context = "\n\nRECENT CONVERSATION HISTORY (for context continuity):\n" + "\n".join(history_lines)
+            chat_context += "\n\nIMPORTANT: Use this conversation history to:"
+            chat_context += "\n- Remember what the user has already told you"
+            chat_context += "\n- Avoid asking for information they already provided"
+            chat_context += "\n- Maintain context across multiple messages"
+            chat_context += "\n- Reference previous orders or meals discussed"
+            chat_context += "\n- Continue multi-step processes (like order creation)"
+            chat_context += "\n- Recall user preferences, restrictions, and goals mentioned earlier"
+
     return f"""CURRENT CONTEXT:
 - Today's date: {current_date}
 - When users ask about food "today" or don't specify a date, use today's date
 - Available dining halls: Berkshire, Worcester, Franklin, Hampshire
 - Meal types: Breakfast, Lunch, Dinner
-- Sample available menu dates: {dates_str}{location_info}
+- Sample available menu dates: {dates_str}{location_info}{profile_info}
 
 AUTOMATIC LOCATION FEATURE:
 - If user has shared their location, it's available in context
@@ -273,7 +383,13 @@ IMPORTANT DATE HANDLING:
 - The search_food_items tool accepts flexible date formats
 - You can use dates like "Monday November 10 2025" or "Mon November 10, 2025"
 - If user asks for a specific day (e.g., "Monday"), try to infer the date or ask for clarification
-- If no menu is found for a date, the tool will suggest available dates"""
+- If no menu is found for a date, the tool will suggest available dates
+
+USER PROFILE ACCESS:
+- User profile data is loaded automatically in the context above
+- If you need MORE detailed health metrics (BMR, TDEE, height, weight), use get_user_nutrition_profile tool
+- Always respect dietary restrictions when suggesting food
+- Align suggestions with user's goals and calorie targets{chat_context}"""
 
 @agent.tool
 async def search_food_items(
@@ -516,21 +632,27 @@ Your order is being prepared!"""
         return f"Error creating order: {str(e)}"
 
 @agent.tool
-async def get_my_orders(ctx: RunContext[ChatbotDeps], status: Optional[str] = None) -> str:
-    """Get all orders for the current user.
+async def get_my_orders(ctx: RunContext[ChatbotDeps], status: Optional[str] = None, limit: int = 10) -> str:
+    """Get all orders for the current user with comprehensive details.
 
     Args:
-        status: Optional filter by status (pending or delivered)
+        status: Optional filter by status (pending, preparing, ready, out_for_delivery, delivered, completed, cancelled)
+        limit: Maximum number of orders to return (default 10)
 
-    Returns list of user's orders with details.
+    Returns list of user's orders with full details including items, nutrition, delivery info.
     """
     try:
         query = supabase.table("orders").select("*").eq("user_id", ctx.deps.user_id)
 
         if status:
-            query = query.eq("status", status)
+            # Handle multiple statuses
+            if "," in status:
+                status_list = [s.strip() for s in status.split(",")]
+                query = query.in_("status", status_list)
+            else:
+                query = query.eq("status", status)
 
-        response = query.order("created_at", desc=True).execute()
+        response = query.order("created_at", desc=True).limit(limit).execute()
 
         if not response.data:
             return "You have no orders yet. Would you like to create one?"
@@ -538,20 +660,52 @@ async def get_my_orders(ctx: RunContext[ChatbotDeps], status: Optional[str] = No
         result_lines = [f"Your Orders ({len(response.data)} total):\n"]
 
         for order in response.data:
-            # Get order items
+            # Get order items with details
             items_response = supabase.table("order_items").select("*").eq("order_id", order["id"]).execute()
             items_count = len(items_response.data) if items_response.data else 0
+            
+            # Build items list
+            items_list = []
+            if items_response.data:
+                for item in items_response.data[:3]:  # Show first 3 items
+                    items_list.append(f"     - {item['food_item_name']} x{item['quantity']}")
+                if items_count > 3:
+                    items_list.append(f"     ... and {items_count - 3} more items")
 
-            status_text = "pending" if order['status'] == 'pending' else "completed"
+            # Format status
+            status_map = {
+                'pending': 'Pending',
+                'preparing': 'Preparing',
+                'ready': 'Ready',
+                'out_for_delivery': 'Out for Delivery',
+                'delivered': 'Delivered',
+                'completed': 'Completed',
+                'cancelled': 'Cancelled'
+            }
+            status_text = status_map.get(order['status'], order['status'])
+            
+            # Format location with coordinates if available
+            location_str = order['delivery_location']
+            if order.get('delivery_latitude') and order.get('delivery_longitude'):
+                location_str += f" (GPS: {order['delivery_latitude']:.4f}, {order['delivery_longitude']:.4f})"
 
             result_lines.append(
-                f"Order {order['id'][:8]}...\n"
+                f"Order #{order['id'][:8]}\n"
                 f"   Status: {status_text}\n"
                 f"   Items: {items_count}\n"
-                f"   Calories: {order.get('total_calories', 0)} kcal\n"
-                f"   Location: {order['delivery_location']}\n"
-                f"   Created: {order['created_at']}"
+                f"{chr(10).join(items_list)}\n" if items_list else ""
+                f"   Nutrition: {order.get('total_calories', 0)} cal | "
+                f"{order.get('total_protein', 0):.1f}g protein | "
+                f"{order.get('total_carbs', 0):.1f}g carbs | "
+                f"{order.get('total_fat', 0):.1f}g fat\n"
+                f"   Delivery: {location_str}\n"
+                f"   Option: {order.get('delivery_option', 'delivery').title()}\n"
+                f"   Time: {order.get('delivery_time', 'ASAP')}\n"
+                f"   Created: {order['created_at'][:19]}"
             )
+            
+            if order.get('special_instructions'):
+                result_lines[-1] += f"\n   Notes: {order['special_instructions']}"
 
         return "\n\n".join(result_lines)
 
@@ -560,23 +714,33 @@ async def get_my_orders(ctx: RunContext[ChatbotDeps], status: Optional[str] = No
 
 @agent.tool
 async def get_order_details(ctx: RunContext[ChatbotDeps], order_id: str) -> str:
-    """Get detailed information about a specific order.
+    """Get comprehensive details about a specific order including all items, nutrition breakdown, and delivery info.
 
     Args:
-        order_id: The UUID of the order
+        order_id: The UUID of the order (can use shortened version like first 8 characters)
 
-    Returns full order details with all items and nutritional breakdown.
+    Returns full order details with all items, nutritional breakdown, delivery information, and status.
     """
     try:
+        # If user provided short ID (8 chars), find the full order
+        if len(order_id) == 8:
+            # Search for orders starting with this ID
+            all_orders = supabase.table("orders").select("id").eq("user_id", ctx.deps.user_id).execute()
+            matching = [o for o in all_orders.data if o['id'].startswith(order_id)]
+            if matching:
+                order_id = matching[0]['id']
+            else:
+                return f"Order starting with {order_id} not found."
+        
         # Get order
         order_response = supabase.table("orders").select("*").eq("id", order_id).execute()
 
         if not order_response.data:
-            return f"Order {order_id} not found."
+            return f"Order {order_id[:8]} not found."
 
         order = order_response.data[0]
 
-        # Get order items
+        # Get order items with full details
         items_response = supabase.table("order_items").select("*").eq("order_id", order_id).execute()
 
         items_list = []
@@ -584,31 +748,61 @@ async def get_order_details(ctx: RunContext[ChatbotDeps], order_id: str) -> str:
             for item in items_response.data:
                 items_list.append(
                     f"- {item['food_item_name']} x{item['quantity']}\n"
-                    f"  Location: {item.get('dining_hall', 'N/A')}\n"
-                    f"  ({item.get('calories', 0)} cal, {item.get('protein', 0)}g protein, "
-                    f"{item.get('carbs', 0)}g carbs, {item.get('fat', 0)}g fat)"
+                    f"  Dining Hall: {item.get('dining_hall', 'N/A')}\n"
+                    f"  Per Item: {item.get('calories', 0)} cal, {item.get('protein', 0)}g protein, "
+                    f"{item.get('carbs', 0)}g carbs, {item.get('fat', 0)}g fat\n"
+                    f"  Subtotal: {item.get('calories', 0) * item['quantity']} cal, "
+                    f"{float(item.get('protein', 0)) * item['quantity']:.1f}g protein"
                 )
 
         items_str = "\n".join(items_list) if items_list else "No items"
 
-        status_text = "pending" if order['status'] == 'pending' else "completed"
+        # Format status with details
+        status_map = {
+            'pending': 'Pending - Order received',
+            'preparing': 'Preparing - Food is being made',
+            'ready': 'Ready - Available for pickup/delivery',
+            'out_for_delivery': 'Out for Delivery - On the way',
+            'delivered': 'Delivered - Order completed',
+            'completed': 'Completed',
+            'cancelled': 'Cancelled'
+        }
+        status_text = status_map.get(order['status'], order['status'])
 
-        return f"""Order Details:
+        # Format delivery info
+        delivery_info = f"Location: {order['delivery_location']}\n"
+        if order.get('delivery_latitude') and order.get('delivery_longitude'):
+            delivery_info += f"GPS Coordinates: ({order['delivery_latitude']:.6f}, {order['delivery_longitude']:.6f})\n"
+        delivery_info += f"Option: {order.get('delivery_option', 'delivery').title()}\n"
+        delivery_info += f"Scheduled: {order.get('delivery_time', 'ASAP')}"
 
-ID: {order['id']}
-Status: {status_text}
-Delivery: {order['delivery_location']}
-Created: {order['created_at']}
-Special Instructions: {order.get('special_instructions') or 'None'}
+        return f"""Order Details - #{order['id'][:8]}
 
-Items:
+STATUS: {status_text}
+Created: {order['created_at'][:19]}
+Last Updated: {order['updated_at'][:19]}
+
+DELIVERY INFORMATION:
+{delivery_info}
+
+SPECIAL INSTRUCTIONS:
+{order.get('special_instructions') or 'None'}
+
+ITEMS ({len(items_response.data) if items_response.data else 0} total):
 {items_str}
 
-Nutritional Totals:
+NUTRITIONAL TOTALS:
 - Calories: {order.get('total_calories', 0)} kcal
-- Protein: {order.get('total_protein', 0)}g
-- Carbs: {order.get('total_carbs', 0)}g
-- Fat: {order.get('total_fat', 0)}g"""
+- Protein: {order.get('total_protein', 0):.1f}g
+- Carbs: {order.get('total_carbs', 0):.1f}g
+- Fat: {order.get('total_fat', 0):.1f}g
+
+---
+To modify this order, you can:
+- Update status: update_order_status
+- Add items: add_item_to_order
+- Remove items: remove_item_from_order
+- Cancel order: cancel_order"""
 
     except Exception as e:
         return f"Error fetching order: {str(e)}"
@@ -1037,20 +1231,108 @@ async def cancel_order(ctx: RunContext[ChatbotDeps], order_id: str) -> str:
     except Exception as e:
         return f"Error cancelling order: {str(e)}"
 
+@agent.tool
+async def get_order_statistics(ctx: RunContext[ChatbotDeps], days: int = 30) -> str:
+    """Get user's order statistics and insights for the past N days.
+
+    Args:
+        days: Number of days to analyze (default 30, max 90)
+
+    Returns comprehensive order statistics including total orders, spending patterns, 
+    favorite items, nutritional trends, and delivery preferences.
+    """
+    try:
+        days = min(days, 90)  # Cap at 90 days
+        
+        # Get all orders for the user
+        response = supabase.table("orders").select("*").eq("user_id", ctx.deps.user_id).order("created_at", desc=True).limit(100).execute()
+        
+        if not response.data:
+            return "No order history found. Place your first order to start tracking!"
+        
+        orders = response.data
+        
+        # Calculate statistics
+        total_orders = len(orders)
+        completed_orders = [o for o in orders if o['status'] in ['delivered', 'completed']]
+        pending_orders = [o for o in orders if o['status'] in ['pending', 'preparing', 'ready', 'out_for_delivery']]
+        cancelled_orders = [o for o in orders if o['status'] == 'cancelled']
+        
+        # Calculate nutritional totals
+        total_calories = sum(o.get('total_calories', 0) for o in completed_orders)
+        total_protein = sum(float(o.get('total_protein', 0)) for o in completed_orders)
+        avg_calories_per_order = total_calories / len(completed_orders) if completed_orders else 0
+        
+        # Delivery preferences
+        delivery_count = sum(1 for o in orders if o.get('delivery_option') == 'delivery')
+        pickup_count = sum(1 for o in orders if o.get('delivery_option') == 'pickup')
+        
+        # Get most ordered items
+        all_items = []
+        for order in completed_orders[:20]:  # Check last 20 orders
+            items_response = supabase.table("order_items").select("food_item_name, quantity").eq("order_id", order["id"]).execute()
+            if items_response.data:
+                all_items.extend(items_response.data)
+        
+        # Count item frequencies
+        item_counts = {}
+        for item in all_items:
+            name = item['food_item_name']
+            qty = item['quantity']
+            item_counts[name] = item_counts.get(name, 0) + qty
+        
+        # Get top 5 items
+        top_items = sorted(item_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_items_str = "\n".join([f"  {i+1}. {name} - ordered {count} times" for i, (name, count) in enumerate(top_items)]) if top_items else "  No data yet"
+        
+        # Status breakdown
+        status_breakdown = f"""
+Active Orders: {len(pending_orders)}
+Completed Orders: {len(completed_orders)}
+Cancelled Orders: {len(cancelled_orders)}"""
+
+        return f"""Order Statistics (Last {days} days)
+
+OVERVIEW:
+Total Orders: {total_orders}
+{status_breakdown}
+
+DELIVERY PREFERENCES:
+Delivery: {delivery_count} orders ({delivery_count/total_orders*100:.1f}%)
+Pickup: {pickup_count} orders ({pickup_count/total_orders*100:.1f}%)
+
+NUTRITIONAL SUMMARY:
+Total Calories Consumed: {total_calories:,} kcal
+Total Protein Consumed: {total_protein:.1f}g
+Average Calories per Order: {avg_calories_per_order:.0f} kcal
+
+YOUR FAVORITE ITEMS:
+{top_items_str}
+
+INSIGHTS:
+- You've completed {len(completed_orders)} orders successfully
+- Average order nutrition: {avg_calories_per_order:.0f} cal
+- You prefer {('delivery' if delivery_count > pickup_count else 'pickup')} orders
+{"- You might want to track some of these meals in your nutrition log!" if completed_orders and not all_items else ""}"""
+
+    except Exception as e:
+        return f"Error calculating statistics: {str(e)}"
+
 @app.get("/")
 async def root():
     return {
         "message": "DoorSmash AI Chatbot API - Complete Food Ordering & Nutrition Platform",
-        "version": "4.0.0",
+        "version": "5.0.0",
         "model": "google-gla:gemini-2.5-flash",
         "features": {
             "orders": [
                 "Browse dining hall menus by location/date/meal type",
                 "Create orders with delivery tracking",
-                "Update order status (pending → delivered)",
+                "Update order status (pending → preparing → ready → out_for_delivery → delivered → completed)",
                 "Add/remove items from existing orders",
                 "Cancel orders",
-                "View order history and details"
+                "View order history with advanced filtering",
+                "Order statistics and insights"
             ],
             "nutrition": [
                 "Search food items database",
@@ -1063,7 +1345,9 @@ async def root():
             ],
             "integration": [
                 "Auto-suggest logging ordered food to nutrition tracker",
-                "Chat history with Supabase",
+                "Chat history with Supabase (20 messages)",
+                "User profile personalization",
+                "Dietary preferences enforcement",
                 "Location-aware features",
                 "Multi-user support"
             ]
@@ -1079,8 +1363,8 @@ async def root():
 async def chat(request: ChatRequest):
     """Chat endpoint that processes user messages and responds using the AI agent."""
     try:
-        # Get chat history for context
-        chat_history = await get_chat_history(request.user_id, limit=10)
+        # Get chat history for context (increased to 20 messages for better context)
+        chat_history = await get_chat_history(request.user_id, limit=20)
 
         # Save user message
         await save_chat_message(request.user_id, "user", request.message)
@@ -1108,7 +1392,11 @@ async def chat(request: ChatRequest):
             # Save assistant response
             await save_chat_message(request.user_id, "assistant", result.output)
 
-            return ChatResponse(response=result.output)
+            # Return response with current timestamp in ISO format
+            return ChatResponse(
+                response=result.output,
+                timestamp=datetime.now().isoformat()
+            )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
