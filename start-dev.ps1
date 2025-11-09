@@ -2,7 +2,7 @@
 # the command to create it is: cd backend && python -m venv .venv && cd ..
 
 # Kill existing processes on ports 8000, 8002, and 8080
-$ports = @(8000, 8002, 5173)
+$ports = @(8000, 8002, 8080)
 foreach ($port in $ports) {
     $processes = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | ForEach-Object {
         Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
@@ -38,5 +38,6 @@ Write-Host "`nAll servers are starting..." -ForegroundColor Yellow
 Write-Host "Backend: http://localhost:8000" -ForegroundColor Cyan
 Write-Host "Chatbot: http://localhost:8002" -ForegroundColor Cyan
 Write-Host "Frontend: http://localhost:8080" -ForegroundColor Cyan
+Write-Host "Chatbot Page: http://localhost:5173/chatbot" -ForegroundColor Cyan
 Write-Host "API Docs: http://localhost:8000/docs" -ForegroundColor Cyan
 Write-Host "Chatbot Docs: http://localhost:8002/docs" -ForegroundColor Cyan

@@ -4,7 +4,7 @@
 # the command to create it is: cd backend && python3 -m venv .venv && cd ..
 
 # Kill existing processes on ports 8000, 8002, and 8080
-ports=(8000 8002 5173)
+ports=(8000 8002 8080)
 for port in "${ports[@]}"; do
     pids=$(lsof -ti:$port 2>/dev/null)
     if [ ! -z "$pids" ]; then

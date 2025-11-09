@@ -172,6 +172,12 @@ agent = Agent(
     deps_type=ChatbotDeps,
     system_prompt="""You are a helpful UMass dining hall assistant for DoorSmash.
 
+CRITICAL FORMATTING RULE: 
+- NEVER use emojis, emoticons, or special Unicode characters in your responses
+- Use ONLY plain ASCII text (letters, numbers, basic punctuation)
+- This is required for system compatibility
+- Violation will cause system errors
+
 YOUR ROLE:
 1. ORDERS - Browse dining hall menus, create/manage food delivery orders
 2. NUTRITION - Track meals, monitor calories/macros, manage health goals
@@ -529,21 +535,21 @@ async def get_my_orders(ctx: RunContext[ChatbotDeps], status: Optional[str] = No
         if not response.data:
             return "You have no orders yet. Would you like to create one?"
 
-        result_lines = [f"📦 Your Orders ({len(response.data)} total):\n"]
+        result_lines = [f"Your Orders ({len(response.data)} total):\n"]
 
         for order in response.data:
             # Get order items
             items_response = supabase.table("order_items").select("*").eq("order_id", order["id"]).execute()
             items_count = len(items_response.data) if items_response.data else 0
 
-            status_emoji = "⏳" if order['status'] == 'pending' else "✅"
+            status_text = "pending" if order['status'] == 'pending' else "completed"
 
             result_lines.append(
-                f"{status_emoji} Order {order['id'][:8]}...\n"
-                f"   Status: {order['status']}\n"
+                f"Order {order['id'][:8]}...\n"
+                f"   Status: {status_text}\n"
                 f"   Items: {items_count}\n"
                 f"   Calories: {order.get('total_calories', 0)} kcal\n"
-                f"   Delivery: {order['delivery_location']}\n"
+                f"   Location: {order['delivery_location']}\n"
                 f"   Created: {order['created_at']}"
             )
 
@@ -578,27 +584,27 @@ async def get_order_details(ctx: RunContext[ChatbotDeps], order_id: str) -> str:
             for item in items_response.data:
                 items_list.append(
                     f"- {item['food_item_name']} x{item['quantity']}\n"
-                    f"  📍 {item.get('dining_hall', 'N/A')}\n"
+                    f"  Location: {item.get('dining_hall', 'N/A')}\n"
                     f"  ({item.get('calories', 0)} cal, {item.get('protein', 0)}g protein, "
                     f"{item.get('carbs', 0)}g carbs, {item.get('fat', 0)}g fat)"
                 )
 
         items_str = "\n".join(items_list) if items_list else "No items"
 
-        status_emoji = "⏳" if order['status'] == 'pending' else "✅"
+        status_text = "pending" if order['status'] == 'pending' else "completed"
 
-        return f"""📦 Order Details:
+        return f"""Order Details:
 
-🆔 ID: {order['id']}
-{status_emoji} Status: {order['status']}
-📍 Delivery: {order['delivery_location']}
-⏰ Created: {order['created_at']}
-📝 Special Instructions: {order.get('special_instructions') or 'None'}
+ID: {order['id']}
+Status: {status_text}
+Delivery: {order['delivery_location']}
+Created: {order['created_at']}
+Special Instructions: {order.get('special_instructions') or 'None'}
 
-🍽️ Items:
+Items:
 {items_str}
 
-📊 Nutritional Totals:
+Nutritional Totals:
 - Calories: {order.get('total_calories', 0)} kcal
 - Protein: {order.get('total_protein', 0)}g
 - Carbs: {order.get('total_carbs', 0)}g
@@ -641,14 +647,14 @@ async def search_nutrition_food_items(
             if not items:
                 return f"No food items found for '{query}'"
 
-            result_lines = [f"🔍 Found {len(items)} nutrition items:\n"]
+            result_lines = [f"Found {len(items)} nutrition items:\n"]
             for i, item in enumerate(items[:limit], 1):
                 result_lines.append(
                     f"{i}. **{item['name']}** (ID: {item['id']})\n"
                     f"   Serving: {item['serving_size']}\n"
-                    f"   📊 {item['calories']} cal | 💪 {item['protein']}g protein | "
-                    f"🍚 {item['total_carb']}g carbs | 🥑 {item['total_fat']}g fat\n"
-                    f"   📍 {item.get('location', 'N/A')} - {item.get('meal_type', 'N/A')}"
+                    f"   {item['calories']} cal | {item['protein']}g protein | "
+                    f"{item['total_carb']}g carbs | {item['total_fat']}g fat\n"
+                    f"   Location: {item.get('location', 'N/A')} - {item.get('meal_type', 'N/A')}"
                 )
             return "\n".join(result_lines)
         else:
@@ -736,17 +742,17 @@ async def get_daily_nutrition_totals(
         response = await ctx.deps.http_client.get(endpoint, timeout=10.0)
         if response.status_code == 200:
             totals = response.json()
-            return f"""📊 Nutrition Summary for {totals.get('date', 'today')}:
+            return f"""Nutrition Summary for {totals.get('date', 'today')}:
 
-🔥 Calories: {totals.get('calories', 0)} kcal
-💪 Protein: {totals.get('protein', 0):.1f}g
-🍚 Carbs: {totals.get('total_carb', 0):.1f}g
-🥑 Fat: {totals.get('total_fat', 0):.1f}g
-🧂 Sodium: {totals.get('sodium', 0):.0f}mg
-🌾 Fiber: {totals.get('dietary_fiber', 0):.1f}g
-🍬 Sugars: {totals.get('sugars', 0):.1f}g
+Calories: {totals.get('calories', 0)} kcal
+Protein: {totals.get('protein', 0):.1f}g
+Carbs: {totals.get('total_carb', 0):.1f}g
+Fat: {totals.get('total_fat', 0):.1f}g
+Sodium: {totals.get('sodium', 0):.0f}mg
+Fiber: {totals.get('dietary_fiber', 0):.1f}g
+Sugars: {totals.get('sugars', 0):.1f}g
 
-🍽️ Meals logged: {totals.get('meal_count', 0)}"""
+Meals logged: {totals.get('meal_count', 0)}"""
         else:
             return f"Error fetching nutrition totals: {response.status_code}"
     except Exception as e:
@@ -777,14 +783,14 @@ async def get_meal_history(
             if not daily_totals:
                 return "No meal history found for this period."
 
-            result_lines = [f"📅 Meal History ({history.get('start_date')} to {history.get('end_date')}):\n"]
+            result_lines = [f"Meal History ({history.get('start_date')} to {history.get('end_date')}):\n"]
 
             for date, totals in daily_totals.items():
                 result_lines.append(
                     f"**{date}**\n"
-                    f"  🔥 {totals['calories']} cal | 💪 {totals['protein']:.1f}g P | "
-                    f"🍚 {totals['total_carb']:.1f}g C | 🥑 {totals['total_fat']:.1f}g F\n"
-                    f"  🍽️ {totals['meal_count']} meals"
+                    f"  {totals['calories']} cal | {totals['protein']:.1f}g P | "
+                    f"{totals['total_carb']:.1f}g C | {totals['total_fat']:.1f}g F\n"
+                    f"  {totals['meal_count']} meals"
                 )
 
             return "\n".join(result_lines)
@@ -934,7 +940,7 @@ async def update_order_status(
         )
         if response.status_code == 200:
             order = response.json()
-            return f"""✅ Order status updated!
+            return f"""Order status updated!
 
 Order ID: {order['id'][:8]}...
 New Status: {order['status']}
@@ -969,7 +975,7 @@ async def add_item_to_order(
         )
         if response.status_code == 200:
             order = response.json()
-            return f"""✅ Item added to order!
+            return f"""Item added to order!
 
 Order ID: {order['id'][:8]}...
 Total Items: {len(order.get('items', []))}
@@ -1001,7 +1007,7 @@ async def remove_item_from_order(
         )
         if response.status_code == 200:
             result = response.json()
-            return f"✅ {result.get('message', 'Item removed successfully')}"
+            return f"{result.get('message', 'Item removed successfully')}"
         else:
             error_detail = response.json().get('detail', 'Unknown error')
             return f"Error removing item: {error_detail}"
@@ -1024,7 +1030,7 @@ async def cancel_order(ctx: RunContext[ChatbotDeps], order_id: str) -> str:
         )
         if response.status_code == 200:
             result = response.json()
-            return f"✅ {result.get('message', 'Order cancelled successfully')}"
+            return f"{result.get('message', 'Order cancelled successfully')}"
         else:
             error_detail = response.json().get('detail', 'Unknown error')
             return f"Error cancelling order: {error_detail}"

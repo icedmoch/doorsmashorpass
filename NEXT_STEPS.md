@@ -243,26 +243,6 @@ User: "I want to order a burger for delivery to room 123"
 Expected: Order created with ID and nutrition totals
 ```
 
----
-
-## Step 5: Production Checklist
-
-### Security
-- [ ] Re-enable RLS on `chat_history` table
-- [ ] Use service_role key OR implement JWT auth
-- [ ] Add CORS configuration for production domains
-- [ ] Add rate limiting to chatbot endpoint
-
-### Performance
-- [ ] Add caching for nutrition data
-- [ ] Optimize database queries (add indexes)
-- [ ] Test with multiple concurrent users
-
-### Monitoring
-- [ ] Add logging for all chatbot interactions
-- [ ] Track token usage (Google Gemini API)
-- [ ] Monitor response times
-- [ ] Set up error alerting
 
 ---
 
