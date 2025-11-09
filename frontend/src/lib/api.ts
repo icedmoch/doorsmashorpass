@@ -321,7 +321,53 @@ export const ordersApi = {
   },
 };
 
+// ==================== CHATBOT API ====================
+
+const CHATBOT_API_URL = import.meta.env.VITE_CHATBOT_API_URL || 'http://localhost:8002';
+
+export interface ChatMessage {
+  message: string;
+  user_id: string;
+  user_location?: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
+export interface ChatResponse {
+  response: string;
+  user_id: string;
+  timestamp: string;
+}
+
+// Chatbot API calls
+export const chatbotApi = {
+  async sendMessage(data: ChatMessage): Promise<ChatResponse> {
+    const url = `${CHATBOT_API_URL}/chat`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ChatResponse>(response);
+  },
+
+  async getInfo(): Promise<{
+    name: string;
+    version: string;
+    model: string;
+    description: string;
+  }> {
+    const url = `${CHATBOT_API_URL}/`;
+    const response = await fetch(url);
+    return handleResponse(response);
+  },
+};
+
 export default {
   nutritionApi,
   ordersApi,
+  chatbotApi,
 };
