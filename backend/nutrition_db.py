@@ -78,13 +78,13 @@ class NutritionDatabase:
         if response.data:
             data = response.data[0]
             
-            # Note: Despite column names, database stores metric values (cm and kg)
+            # Get imperial values from database
             height_inches = data.get("height_inches")
             weight_lbs = data.get("weight_lbs")
-            
-            # Use values directly as they're already in metric
-            height_cm = float(height_inches) if height_inches else None
-            weight_kg = float(weight_lbs) if weight_lbs else None
+
+            # Convert to metric (cm and kg)
+            height_cm = float(height_inches) * 2.54 if height_inches else None
+            weight_kg = float(weight_lbs) / 2.20462 if weight_lbs else None
             
             # Get age, sex, activity_level with defaults if None
             age = data.get("age") or 25  # Default age if not set

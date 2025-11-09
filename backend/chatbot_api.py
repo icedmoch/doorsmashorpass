@@ -32,17 +32,14 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 NUTRITION_API_BASE = os.getenv("NUTRITION_API_BASE", "http://localhost:8000")
 ORDERS_API_BASE = os.getenv("ORDERS_API_BASE", "http://localhost:8000")
 
-<<<<<<< HEAD
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-=======
-@app.on_event("startup")
-async def startup():
->>>>>>> dbda1f1fece40435be928702eaaaedc169b10ca1
+    # Startup - Set Google API key for Gemini
     os.environ.setdefault("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
+    print("Chatbot API startup: Google API key configured")
     yield
-    # Shutdown (if needed)
+    # Shutdown - Cleanup if needed
+    print("Chatbot API shutdown")
 
 app = FastAPI(title="DoorSmash AI Chatbot API", lifespan=lifespan)
 
@@ -167,8 +164,8 @@ def is_weekend(date_str: str) -> bool:
 class ChatbotDeps:
     user_id: str
     chat_history: List[dict]
+    http_client: httpx.AsyncClient
     user_location: Optional[dict] = None  # {latitude: float, longitude: float}
-    http_client: httpx.AsyncClient = None  # HTTP client for API calls
 
 # Create the agent with Gemini
 agent = Agent(
@@ -176,13 +173,6 @@ agent = Agent(
     deps_type=ChatbotDeps,
     system_prompt="""You are a helpful UMass dining hall assistant for DoorSmash with FULL ORDER MANAGEMENT capabilities.
 
-<<<<<<< Updated upstream
-YOUR ROLE:
-1. ORDERS - Browse dining hall menus, create/manage food delivery orders
-2. NUTRITION - Track meals, monitor calories/macros, manage health goals
-3. PROFILE - Help users set dietary preferences, goals, and health metrics
-4. INTEGRATION - Offer to track ordered food in nutrition log (always ask first!)
-=======
 CRITICAL FORMATTING RULE: 
 - NEVER use emojis, emoticons, or special Unicode characters in your responses
 - Use ONLY plain ASCII text (letters, numbers, basic punctuation)
@@ -227,7 +217,6 @@ COMPLETE ORDER MANAGEMENT FEATURES:
 - Check delivery preferences (delivery vs pickup)
 - Access GPS coordinates for delivery locations
 - Review special instructions and notes
->>>>>>> Stashed changes
 
 ORDER CREATION PROCESS - FOLLOW THIS STRICTLY:
 When a user wants to create an order, you MUST collect ALL information before calling create_order:
@@ -435,7 +424,7 @@ async def search_food_items(
 
         # Check if the date is a weekend (Saturday or Sunday)
         if is_weekend(date):
-            return "Grab N Go is closed for the weekend 😔\n\nDining halls are closed on Saturdays and Sundays. Please check weekday menus (Monday-Friday)."
+            return "Grab N Go is closed for the weekend.\n\nDining halls are closed on Saturdays and Sundays. Please check weekday menus (Monday-Friday)."
 
         # Build query
         query = supabase.table("food_items").select("*")
@@ -460,14 +449,14 @@ async def search_food_items(
             return f"No food items found{date_msg}. Try different search criteria or check if menus are available for this date.{suggestions}"
 
         # Format results
-        result_lines = [f"🍽️ Found {len(response.data)} items{' for ' + date if date else ''}:\n"]
+        result_lines = [f"Found {len(response.data)} items{' for ' + date if date else ''}:\n"]
 
         for i, item in enumerate(response.data, 1):
             result_lines.append(
                 f"{i}. **{item['name']}** (ID: {item['id']})\n"
-                f"   📍 {item.get('location', 'Unknown')} - {item.get('meal_type', 'N/A')}\n"
-                f"   🔥 {item['calories']} cal | 💪 {item['protein']}g protein | "
-                f"🍚 {item['total_carb']}g carbs | 🥑 {item['total_fat']}g fat"
+                f"   Location: {item.get('location', 'Unknown')} - {item.get('meal_type', 'N/A')}\n"
+                f"   {item['calories']} cal | {item['protein']}g protein | "
+                f"{item['total_carb']}g carbs | {item['total_fat']}g fat"
             )
 
         return "\n\n".join(result_lines)
@@ -608,36 +597,36 @@ async def create_order(
         ])
 
         # Add location coordinates if provided
-        location_details = f"📍 Delivery: {delivery_location}"
+        location_details = f"Delivery: {delivery_location}"
         if delivery_latitude and delivery_longitude:
-            location_details += f"\n🗺️ Coordinates: ({delivery_latitude}, {delivery_longitude})"
+            location_details += f"\nCoordinates: ({delivery_latitude}, {delivery_longitude})"
 
         # Add delivery option if not default
         delivery_info = ""
         if delivery_option and delivery_option != "delivery":
-            delivery_info = f"\n🚗 Option: {delivery_option.capitalize()}"
+            delivery_info = f"\nOption: {delivery_option.capitalize()}"
 
         # Add special instructions if provided
         special_notes = ""
         if special_instructions:
-            special_notes = f"\n📝 Special Instructions: {special_instructions}"
+            special_notes = f"\nSpecial Instructions: {special_instructions}"
 
-        return f"""✅ Order created successfully!
+        return f"""Order created successfully!
 
-📦 Order ID: {order_id}
+Order ID: {order_id}
 {location_details}{delivery_info}
-⏰ Status: pending{special_notes}
+Status: pending{special_notes}
 
-🍽️ Items:
+Items:
 {items_list}
 
-📊 Nutritional Totals:
+Nutritional Totals:
 - Calories: {total_cals} kcal
 - Protein: {total_protein:.1f}g
 - Carbs: {total_carbs:.1f}g
 - Fat: {total_fat:.1f}g
 
-Your order is being prepared! 🎉"""
+Your order is being prepared!"""
 
     except Exception as e:
         return f"Error creating order: {str(e)}"
@@ -668,7 +657,7 @@ async def get_my_orders(ctx: RunContext[ChatbotDeps], status: Optional[str] = No
         if not response.data:
             return "You have no orders yet. Would you like to create one?"
 
-        result_lines = [f"📦 Your Orders ({len(response.data)} total):\n"]
+        result_lines = [f"Your Orders ({len(response.data)} total):\n"]
 
         for order in response.data:
             # Get order items with details
@@ -683,27 +672,17 @@ async def get_my_orders(ctx: RunContext[ChatbotDeps], status: Optional[str] = No
                 if items_count > 3:
                     items_list.append(f"     ... and {items_count - 3} more items")
 
-<<<<<<< Updated upstream
-            status_emoji = "⏳" if order['status'] == 'pending' else "✅"
-
-            result_lines.append(
-                f"{status_emoji} Order {order['id'][:8]}...\n"
-                f"   Status: {order['status']}\n"
-                f"   Items: {items_count}\n"
-                f"   Calories: {order.get('total_calories', 0)} kcal\n"
-                f"   Delivery: {order['delivery_location']}\n"
-                f"   Created: {order['created_at']}"
-=======
             # Format status
-            status_emoji = {
-                'pending': 'clock',
-                'preparing': 'cooking',
-                'ready': 'check',
-                'out_for_delivery': 'truck',
-                'delivered': 'package',
-                'completed': 'checkmark',
-                'cancelled': 'x'
+            status_map = {
+                'pending': 'Pending',
+                'preparing': 'Preparing',
+                'ready': 'Ready',
+                'out_for_delivery': 'Out for Delivery',
+                'delivered': 'Delivered',
+                'completed': 'Completed',
+                'cancelled': 'Cancelled'
             }
+            status_text = status_map.get(order['status'], order['status'])
             
             # Format location with coordinates if available
             location_str = order['delivery_location']
@@ -712,7 +691,7 @@ async def get_my_orders(ctx: RunContext[ChatbotDeps], status: Optional[str] = No
 
             result_lines.append(
                 f"Order #{order['id'][:8]}\n"
-                f"   Status: {order['status'].replace('_', ' ').title()}\n"
+                f"   Status: {status_text}\n"
                 f"   Items: {items_count}\n"
                 f"{chr(10).join(items_list)}\n" if items_list else ""
                 f"   Nutrition: {order.get('total_calories', 0)} cal | "
@@ -723,7 +702,6 @@ async def get_my_orders(ctx: RunContext[ChatbotDeps], status: Optional[str] = No
                 f"   Option: {order.get('delivery_option', 'delivery').title()}\n"
                 f"   Time: {order.get('delivery_time', 'ASAP')}\n"
                 f"   Created: {order['created_at'][:19]}"
->>>>>>> Stashed changes
             )
             
             if order.get('special_instructions'):
@@ -770,37 +748,15 @@ async def get_order_details(ctx: RunContext[ChatbotDeps], order_id: str) -> str:
             for item in items_response.data:
                 items_list.append(
                     f"- {item['food_item_name']} x{item['quantity']}\n"
-<<<<<<< Updated upstream
-                    f"  📍 {item.get('dining_hall', 'N/A')}\n"
-                    f"  ({item.get('calories', 0)} cal, {item.get('protein', 0)}g protein, "
-                    f"{item.get('carbs', 0)}g carbs, {item.get('fat', 0)}g fat)"
-=======
                     f"  Dining Hall: {item.get('dining_hall', 'N/A')}\n"
                     f"  Per Item: {item.get('calories', 0)} cal, {item.get('protein', 0)}g protein, "
                     f"{item.get('carbs', 0)}g carbs, {item.get('fat', 0)}g fat\n"
                     f"  Subtotal: {item.get('calories', 0) * item['quantity']} cal, "
                     f"{float(item.get('protein', 0)) * item['quantity']:.1f}g protein"
->>>>>>> Stashed changes
                 )
 
         items_str = "\n".join(items_list) if items_list else "No items"
 
-<<<<<<< Updated upstream
-        status_emoji = "⏳" if order['status'] == 'pending' else "✅"
-
-        return f"""📦 Order Details:
-
-🆔 ID: {order['id']}
-{status_emoji} Status: {order['status']}
-📍 Delivery: {order['delivery_location']}
-⏰ Created: {order['created_at']}
-📝 Special Instructions: {order.get('special_instructions') or 'None'}
-
-🍽️ Items:
-{items_str}
-
-📊 Nutritional Totals:
-=======
         # Format status with details
         status_map = {
             'pending': 'Pending - Order received',
@@ -836,7 +792,6 @@ ITEMS ({len(items_response.data) if items_response.data else 0} total):
 {items_str}
 
 NUTRITIONAL TOTALS:
->>>>>>> Stashed changes
 - Calories: {order.get('total_calories', 0)} kcal
 - Protein: {order.get('total_protein', 0):.1f}g
 - Carbs: {order.get('total_carbs', 0):.1f}g
@@ -886,14 +841,14 @@ async def search_nutrition_food_items(
             if not items:
                 return f"No food items found for '{query}'"
 
-            result_lines = [f"🔍 Found {len(items)} nutrition items:\n"]
+            result_lines = [f"Found {len(items)} nutrition items:\n"]
             for i, item in enumerate(items[:limit], 1):
                 result_lines.append(
                     f"{i}. **{item['name']}** (ID: {item['id']})\n"
                     f"   Serving: {item['serving_size']}\n"
-                    f"   📊 {item['calories']} cal | 💪 {item['protein']}g protein | "
-                    f"🍚 {item['total_carb']}g carbs | 🥑 {item['total_fat']}g fat\n"
-                    f"   📍 {item.get('location', 'N/A')} - {item.get('meal_type', 'N/A')}"
+                    f"   {item['calories']} cal | {item['protein']}g protein | "
+                    f"{item['total_carb']}g carbs | {item['total_fat']}g fat\n"
+                    f"   Location: {item.get('location', 'N/A')} - {item.get('meal_type', 'N/A')}"
                 )
             return "\n".join(result_lines)
         else:
@@ -936,19 +891,19 @@ async def log_meal_to_nutrition(
         )
         if response.status_code == 201:
             meal = response.json()
-            food = meal.get('food_item', {})
-            total_cals = food.get('calories', 0) * servings
-            total_protein = food.get('protein', 0) * servings
-            total_carbs = food.get('total_carb', 0) * servings
-            total_fat = food.get('total_fat', 0) * servings
+            # MealEntryResponse has food details at top level, not nested
+            total_cals = (meal.get('calories', 0) or 0) * servings
+            total_protein = (meal.get('protein', 0) or 0) * servings
+            total_carbs = (meal.get('total_carb', 0) or 0) * servings
+            total_fat = (meal.get('total_fat', 0) or 0) * servings
 
-            return f"""✅ Meal logged successfully!
+            return f"""Meal logged successfully!
 
-📝 Entry: {food.get('name', 'Unknown')}
-🍽️ Servings: {servings}
-📅 Category: {meal_category}
+Entry: {meal.get('food_name', 'Unknown')}
+Servings: {servings}
+Category: {meal_category}
 
-📊 Nutritional Impact:
+Nutritional Impact:
 - Calories: {total_cals:.0f} kcal
 - Protein: {total_protein:.1f}g
 - Carbs: {total_carbs:.1f}g
@@ -981,17 +936,17 @@ async def get_daily_nutrition_totals(
         response = await ctx.deps.http_client.get(endpoint, timeout=10.0)
         if response.status_code == 200:
             totals = response.json()
-            return f"""📊 Nutrition Summary for {totals.get('date', 'today')}:
+            return f"""Nutrition Summary for {totals.get('date', 'today')}:
 
-🔥 Calories: {totals.get('calories', 0)} kcal
-💪 Protein: {totals.get('protein', 0):.1f}g
-🍚 Carbs: {totals.get('total_carb', 0):.1f}g
-🥑 Fat: {totals.get('total_fat', 0):.1f}g
-🧂 Sodium: {totals.get('sodium', 0):.0f}mg
-🌾 Fiber: {totals.get('dietary_fiber', 0):.1f}g
-🍬 Sugars: {totals.get('sugars', 0):.1f}g
+Calories: {totals.get('calories', 0)} kcal
+Protein: {totals.get('protein', 0):.1f}g
+Carbs: {totals.get('total_carb', 0):.1f}g
+Fat: {totals.get('total_fat', 0):.1f}g
+Sodium: {totals.get('sodium', 0):.0f}mg
+Fiber: {totals.get('dietary_fiber', 0):.1f}g
+Sugars: {totals.get('sugars', 0):.1f}g
 
-🍽️ Meals logged: {totals.get('meal_count', 0)}"""
+Meals logged: {totals.get('meal_count', 0)}"""
         else:
             return f"Error fetching nutrition totals: {response.status_code}"
     except Exception as e:
@@ -1022,14 +977,14 @@ async def get_meal_history(
             if not daily_totals:
                 return "No meal history found for this period."
 
-            result_lines = [f"📅 Meal History ({history.get('start_date')} to {history.get('end_date')}):\n"]
+            result_lines = [f"Meal History ({history.get('start_date')} to {history.get('end_date')}):\n"]
 
             for date, totals in daily_totals.items():
                 result_lines.append(
                     f"**{date}**\n"
-                    f"  🔥 {totals['calories']} cal | 💪 {totals['protein']:.1f}g P | "
-                    f"🍚 {totals['total_carb']:.1f}g C | 🥑 {totals['total_fat']:.1f}g F\n"
-                    f"  🍽️ {totals['meal_count']} meals"
+                    f"  {totals['calories']} cal | {totals['protein']:.1f}g P | "
+                    f"{totals['total_carb']:.1f}g C | {totals['total_fat']:.1f}g F\n"
+                    f"  {totals['meal_count']} meals"
                 )
 
             return "\n".join(result_lines)
@@ -1052,32 +1007,38 @@ async def get_user_nutrition_profile(ctx: RunContext[ChatbotDeps]) -> str:
         if response.status_code == 200:
             profile = response.json()
 
-            result = f"""👤 Nutrition Profile:
+            # Convert cm to inches and kg to lbs for display
+            height_cm = profile.get('height_cm')
+            weight_kg = profile.get('weight_kg')
+            height_display = f"{height_cm / 2.54:.1f} inches ({height_cm:.1f} cm)" if height_cm else "Not set"
+            weight_display = f"{weight_kg * 2.20462:.1f} lbs ({weight_kg:.1f} kg)" if weight_kg else "Not set"
 
-📋 Basic Info:
+            result = f"""Nutrition Profile:
+
+Basic Info:
 - Name: {profile.get('full_name', 'Not set')}
 - Age: {profile.get('age', 'Not set')}
 - Sex: {profile.get('sex', 'Not set')}
-- Height: {profile.get('height_inches', 'Not set')} inches
-- Weight: {profile.get('weight_lbs', 'Not set')} lbs
+- Height: {height_display}
+- Weight: {weight_display}
 
-📊 Metabolic Rates:
+Metabolic Rates:
 - BMR: {profile.get('bmr', 'Not calculated')} cal/day
 - TDEE: {profile.get('tdee', 'Not calculated')} cal/day
 - Activity Level: {profile.get('activity_level', 'Not set')}/5
 
-🎯 Daily Goals:
+Daily Goals:
 - Calories: {profile.get('goal_calories', 'Not set')} kcal
 - Protein: {profile.get('goal_protein', 'Not set')}g
 - Carbs: {profile.get('goal_carbs', 'Not set')}g
 - Fat: {profile.get('goal_fat', 'Not set')}g
 
-🥗 Dietary Preferences: {', '.join(profile.get('dietary_preferences', [])) or 'None set'}
-📝 Goals: {profile.get('goals', 'Not set')}"""
+Dietary Preferences: {', '.join(profile.get('dietary_preferences', [])) or 'None set'}
+Goals: {profile.get('goals', 'Not set')}"""
 
             return result
         elif response.status_code == 404:
-            return "❌ No nutrition profile found. User needs to complete onboarding."
+            return "No nutrition profile found. User needs to complete onboarding."
         else:
             return f"Error fetching profile: {response.status_code}"
     except Exception as e:
@@ -1114,9 +1075,11 @@ async def update_nutrition_profile(
         if sex is not None:
             update_data["sex"] = sex
         if height_inches is not None:
-            update_data["height_inches"] = height_inches
+            # Convert inches to cm for API
+            update_data["height_cm"] = height_inches * 2.54
         if weight_lbs is not None:
-            update_data["weight_lbs"] = weight_lbs
+            # Convert lbs to kg for API
+            update_data["weight_kg"] = weight_lbs / 2.20462
         if activity_level is not None:
             update_data["activity_level"] = activity_level
         if goals is not None:
@@ -1134,7 +1097,7 @@ async def update_nutrition_profile(
         )
         if response.status_code == 200:
             profile = response.json()
-            return f"""✅ Profile updated successfully!
+            return f"""Profile updated successfully!
 
 Updated metrics:
 - BMR: {profile.get('bmr', 'N/A')} cal/day
@@ -1171,7 +1134,7 @@ async def update_order_status(
         )
         if response.status_code == 200:
             order = response.json()
-            return f"""✅ Order status updated!
+            return f"""Order status updated!
 
 Order ID: {order['id'][:8]}...
 New Status: {order['status']}
@@ -1206,7 +1169,7 @@ async def add_item_to_order(
         )
         if response.status_code == 200:
             order = response.json()
-            return f"""✅ Item added to order!
+            return f"""Item added to order!
 
 Order ID: {order['id'][:8]}...
 Total Items: {len(order.get('items', []))}
@@ -1238,7 +1201,7 @@ async def remove_item_from_order(
         )
         if response.status_code == 200:
             result = response.json()
-            return f"✅ {result.get('message', 'Item removed successfully')}"
+            return f"{result.get('message', 'Item removed successfully')}"
         else:
             error_detail = response.json().get('detail', 'Unknown error')
             return f"Error removing item: {error_detail}"
@@ -1261,7 +1224,7 @@ async def cancel_order(ctx: RunContext[ChatbotDeps], order_id: str) -> str:
         )
         if response.status_code == 200:
             result = response.json()
-            return f"✅ {result.get('message', 'Order cancelled successfully')}"
+            return f"{result.get('message', 'Order cancelled successfully')}"
         else:
             error_detail = response.json().get('detail', 'Unknown error')
             return f"Error cancelling order: {error_detail}"
@@ -1359,16 +1322,17 @@ INSIGHTS:
 async def root():
     return {
         "message": "DoorSmash AI Chatbot API - Complete Food Ordering & Nutrition Platform",
-        "version": "4.0.0", ## google-gla:gemini-2.5-flash
-        "model": "google-gla:gemini-2.0-flash-lite",
+        "version": "5.0.0",
+        "model": "google-gla:gemini-2.5-flash",
         "features": {
             "orders": [
                 "Browse dining hall menus by location/date/meal type",
                 "Create orders with delivery tracking",
-                "Update order status (pending → delivered)",
+                "Update order status (pending → preparing → ready → out_for_delivery → delivered → completed)",
                 "Add/remove items from existing orders",
                 "Cancel orders",
-                "View order history and details"
+                "View order history with advanced filtering",
+                "Order statistics and insights"
             ],
             "nutrition": [
                 "Search food items database",
@@ -1381,7 +1345,9 @@ async def root():
             ],
             "integration": [
                 "Auto-suggest logging ordered food to nutrition tracker",
-                "Chat history with Supabase",
+                "Chat history with Supabase (20 messages)",
+                "User profile personalization",
+                "Dietary preferences enforcement",
                 "Location-aware features",
                 "Multi-user support"
             ]
@@ -1417,8 +1383,8 @@ async def chat(request: ChatRequest):
             deps = ChatbotDeps(
                 user_id=request.user_id,
                 chat_history=chat_history,
-                user_location=user_location_dict,
-                http_client=http_client
+                http_client=http_client,
+                user_location=user_location_dict
             )
 
             result = await agent.run(request.message, deps=deps)

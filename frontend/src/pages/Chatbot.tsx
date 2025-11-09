@@ -11,6 +11,7 @@ import { useSpeech } from "@/hooks/useSpeech";
 import { supabase } from "@/integrations/supabase/client";
 import { chatbotApi } from "@/lib/api";
 import { User } from "@supabase/supabase-js";
+import Markdown from "react-markdown";
 
 type Message = {
   id: string;
@@ -228,7 +229,9 @@ const Chatbot = () => {
                             : "bg-card border border-border"
                         )}
                       >
-                        <p className="text-sm leading-relaxed">{message.content}</p>
+                        <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert">
+                          <Markdown>{message.content}</Markdown>
+                        </div>
                         <p className="text-xs opacity-60 mt-1">
                           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
