@@ -202,13 +202,37 @@ const OrderHistory = () => {
     try {
       setIsLoading(true);
 
-      // Fetch orders using API, including all non-final statuses
-      const ordersData = await ordersApi.getUserOrders(userId, 'pending,preparing,ready,out_for_delivery,delivered,cancelled');
+      // Fetch orders directly from Supabase to avoid any backend filter mismatches
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', userId)
+        .in('status', ['pending', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'])
+        .order('created_at', { ascending: false }) as any;
 
-      setOrders(ordersData);
+      if (ordersError) throw ordersError;
+
+      // Attach items for each order
+      const ordersWithItems = await Promise.all(
+        (ordersData || []).map(async (order: any) => {
+          const { data: items, error: itemsError } = await supabase
+            .from('order_items')
+            .select('*')
+            .eq('order_id', order.id);
+
+          if (itemsError) throw itemsError;
+
+          return {
+            ...order,
+            items: items || [],
+          } as Order;
+        })
+      );
+
+      setOrders(ordersWithItems);
 
       // Check if there's a recently delivered order to prompt meal tracking
-      const recentlyDelivered = ordersData.find(
+      const recentlyDelivered = (ordersWithItems as Order[]).find(
         order => order.status === 'delivered' && 
         new Date(order.updated_at).getTime() > Date.now() - 60000 && // Delivered in last minute
         order.items && order.items.length > 0
@@ -312,7 +336,7 @@ const OrderHistory = () => {
     }
   };
 
-  const handleClaimDelivery = async (orderId: number) => {
+  const handleClaimDelivery = async (orderId: string) => {
     if (!user) return;
 
     try {
@@ -322,7 +346,7 @@ const OrderHistory = () => {
           deliverer_id: user.id,
           status: 'preparing',
         })
-        .eq('id', orderId as any);
+        .eq('id', orderId);
 
       if (error) throw error;
 
@@ -344,17 +368,18 @@ const OrderHistory = () => {
     }
   };
 
-  const handleUnclaimDelivery = async (orderId: number) => {
+  const handleUnclaimDelivery = async (orderId: string) => {
     if (!user) return;
 
     try {
+      console.log('Attempting to unclaim order', { orderId, userId: user.id });
       const { error } = await supabase
         .from('orders')
         .update({
           deliverer_id: null,
           status: 'pending',
         })
-        .eq('id', orderId as any);
+        .eq('id', orderId);
 
       if (error) throw error;
 
@@ -366,11 +391,11 @@ const OrderHistory = () => {
       // Refresh the lists
       fetchAvailableDeliveries(user.id);
       fetchMyDeliveries(user.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error unclaiming delivery:', error);
       toast({
         title: "Error",
-        description: "Failed to unclaim delivery",
+        description: error?.message || error?.details || "Failed to unclaim delivery",
         variant: "destructive",
       });
     }
@@ -753,9 +778,9 @@ type OrderCardProps = {
   showClaimButton: boolean;
   showDeliveryActions?: boolean;
   showCustomerActions?: boolean;
-  onClaim?: (orderId: number) => void;
-  onUnclaim?: (orderId: number) => void;
-  onComplete?: (orderId: number) => void;
+  onClaim?: (orderId: string) => void;
+  onUnclaim?: (orderId: string) => void;
+  onComplete?: (orderId: string) => void;
   onMarkAsDelivered?: (orderId: string) => void;
   onInitiatePayment?: () => void;
 };
@@ -870,10 +895,10 @@ const OrderCard = ({
           </div>
         )}
 
-        {order.special_notes && (
+        {order.special_instructions && (
           <div className="mb-6 p-3 bg-muted/50 rounded-lg">
             <p className="text-sm font-medium mb-1">Special Instructions</p>
-            <p className="text-sm text-muted-foreground">{order.special_notes}</p>
+            <p className="text-sm text-muted-foreground">{order.special_instructions}</p>
           </div>
         )}
 
@@ -955,7 +980,7 @@ const OrderCard = ({
             </div>
             <Button 
               className="w-full" 
-              onClick={() => onClaim(order.id as any)}
+              onClick={() => onClaim(order.id)}
             >
               <User className="mr-2 h-4 w-4" />
               Claim This Delivery
@@ -965,22 +990,11 @@ const OrderCard = ({
 
         {showDeliveryActions && (
           <div className="flex gap-2">
-            {order.status !== 'delivered' && onComplete && (
-              <Button 
-                className="flex-1" 
-                onClick={() => onComplete(order.id as any)}
-                // PAYMENT DISABLED - Remove payment requirement
-                // disabled={!order.stripe_payment_intent_id}
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Mark as Delivered
-              </Button>
-            )}
             {order.status !== 'delivered' && onUnclaim && (
               <Button 
                 variant="outline" 
                 className="flex-1" 
-                onClick={() => onUnclaim(order.id as any)}
+                onClick={() => onUnclaim(order.id)}
               >
                 <XCircle className="mr-2 h-4 w-4" />
                 Unclaim

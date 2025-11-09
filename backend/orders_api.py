@@ -442,13 +442,31 @@ async def cancel_order(order_id: str):
 @app.get("/users/{user_id}/orders", response_model=List[OrderResponse])
 async def get_user_orders(
     user_id: str,
-    status: Optional[str] = Query(None, description="Filter by status"),
+    status: Optional[str] = Query(None, description="Filter by comma-separated statuses"),
     limit: int = Query(20, le=100)
 ):
     """
-    Get all orders for a specific user
+    Get all orders for a specific user, with optional status filtering.
     """
-    return await list_orders(user_id=user_id, status=status, limit=limit)
+    query = supabase.table("orders").select("*").eq("user_id", user_id)
+
+    if status:
+        if "," in status:
+            status_list = [s.strip() for s in status.split(",")]
+            query = query.in_("status", status_list)
+        else:
+            query = query.eq("status", status)
+
+    query = query.order("created_at", desc=True).limit(limit)
+    response = query.execute()
+
+    orders = []
+    for order_data in response.data:
+        items_response = supabase.table("order_items").select("*").eq("order_id", order_data["id"]).execute()
+        order_data["items"] = items_response.data
+        orders.append(order_data)
+
+    return orders
 
 
 if __name__ == "__main__":
