@@ -129,35 +129,27 @@ async def create_food_item(food: FoodItemCreate):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/nutrition/food-items/{food_id}", response_model=FoodItemResponse)
-async def get_food_item(food_id: int):
-    """Get food item by ID"""
-    food = await nutrition_db.get_food_item(food_id)
-    if not food:
-        raise HTTPException(status_code=404, detail=f"Food item {food_id} not found")
-    return food
+# ==================== FOOD ITEM ENDPOINTS ====================
+# NOTE: Order matters! More specific routes must come before generic ones
 
-
-@app.get("/api/nutrition/food-items", response_model=List[FoodItemResponse])
-async def list_food_items(
-    limit: int = Query(100, le=500, description="Maximum number of items to return"),
-    offset: int = Query(0, ge=0, description="Number of items to skip")
+@app.get("/api/nutrition/food-items/search", response_model=List[FoodItemResponse])
+async def search_food_items(
+    q: str = Query("", description="Search query (empty string returns all items)"),
+    limit: int = Query(50, le=200),
+    date: Optional[str] = Query(None, description="Filter by date (YYYY-MM-DD)")
 ):
-    """List all food items with pagination"""
+    """Search food items by name, optionally filtered by date. Empty query returns all items."""
     try:
-        return await nutrition_db.list_food_items(limit=limit, offset=offset)
+        return await nutrition_db.search_food_items(q, limit=limit, date=date)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/nutrition/food-items/search", response_model=List[FoodItemResponse])
-async def search_food_items(
-    q: str = Query(..., min_length=1, description="Search query"),
-    limit: int = Query(50, le=200)
-):
-    """Search food items by name"""
+@app.get("/api/nutrition/food-items/available-dates")
+async def get_available_dates():
+    """Get list of dates that have food items available"""
     try:
-        return await nutrition_db.search_food_items(q, limit=limit)
+        return await nutrition_db.get_available_dates()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -175,6 +167,27 @@ async def get_menu_by_location_date(location: str, date: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/nutrition/food-items", response_model=List[FoodItemResponse])
+async def list_food_items(
+    limit: int = Query(100, le=500, description="Maximum number of items to return"),
+    offset: int = Query(0, ge=0, description="Number of items to skip")
+):
+    """List all food items with pagination"""
+    try:
+        return await nutrition_db.list_food_items(limit=limit, offset=offset)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/nutrition/food-items/{food_id}", response_model=FoodItemResponse)
+async def get_food_item(food_id: int):
+    """Get food item by ID"""
+    food = await nutrition_db.get_food_item(food_id)
+    if not food:
+        raise HTTPException(status_code=404, detail=f"Food item {food_id} not found")
+    return food
+
+
 # ==================== MEAL ENTRY ENDPOINTS ====================
 
 @app.post("/api/nutrition/meals", response_model=MealEntryResponse, status_code=201)
@@ -190,11 +203,15 @@ async def create_meal_entry(entry: MealEntryCreate):
         if not food:
             raise HTTPException(status_code=404, detail=f"Food item {entry.food_item_id} not found")
         
-        return await nutrition_db.create_meal_entry(entry)
+        result = await nutrition_db.create_meal_entry(entry)
+        return result
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        print(f"ERROR in create_meal_entry: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to create meal entry: {str(e)}")
 
 
 @app.get("/api/nutrition/meals/{entry_id}", response_model=MealEntryResponse)

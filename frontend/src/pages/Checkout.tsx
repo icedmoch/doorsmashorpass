@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { ChevronLeft, Clock, Loader2 } from "lucide-react";
 import { LocationPicker } from "@/components/LocationPicker";
 import { User } from "@supabase/supabase-js";
+import { ordersApi } from "@/lib/api";
 
 const Checkout = () => {
   const { items, totals, clearCart } = useCart();
@@ -69,8 +70,8 @@ const Checkout = () => {
     setIsSubmitting(true);
 
     try {
-      // Create the order first
-      let deliveryTimestamp = null;
+      // Format delivery time
+      let deliveryTimestamp: string | undefined;
       if (deliveryTime) {
         const today = new Date();
         const [hours, minutes] = deliveryTime.split(':');
@@ -78,47 +79,22 @@ const Checkout = () => {
         deliveryTimestamp = today.toISOString();
       }
 
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          delivery_option: 'delivery',
-          delivery_location: deliveryLocation,
-          delivery_latitude: deliveryLat,
-          delivery_longitude: deliveryLng,
-          delivery_time: deliveryTimestamp,
-          special_notes: notes || null,
-          status: 'pending',
-          total_calories: totals.calories,
-          total_protein: totals.protein,
-          total_carbs: totals.carbs,
-          total_fat: totals.fat,
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Create order items
+      // Prepare order items for API
       const orderItems = items.map(item => ({
-        order_id: order.id,
         food_item_id: parseInt(item.id),
-        food_item_name: item.name,
         quantity: item.quantity,
-        calories: item.calories,
-        protein: item.protein,
-        carbs: item.carbs,
-        fat: item.fat,
-        dining_hall: item.diningHall || null,
       }));
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+      // Create order using API
+      const order = await ordersApi.createOrder({
+        user_id: user.id,
+        delivery_location: deliveryLocation,
+        delivery_time: deliveryTimestamp,
+        special_instructions: notes || undefined,
+        items: orderItems,
+      });
 
-      if (itemsError) throw itemsError;
-
-      // Store order ID in localStorage so we can update it after payment
+      // Store order ID in localStorage
       localStorage.setItem('pendingOrderId', order.id);
 
       toast({
@@ -134,7 +110,7 @@ const Checkout = () => {
       console.error('Error placing order:', error);
       toast({
         title: "Error",
-        description: "Failed to place order. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to place order. Please try again.",
         variant: "destructive",
       });
     } finally {

@@ -31,11 +31,12 @@ class NutritionDatabase:
             profile.activity_level
         )
         
+        # Store metric values directly (column names are misleading but store metric)
         data = {
             "age": profile.age,
             "sex": profile.sex,
-            "height_cm": profile.height_cm,
-            "weight_kg": profile.weight_kg,
+            "height_inches": profile.height_cm,  # Despite column name, stores cm
+            "weight_lbs": profile.weight_kg,     # Despite column name, stores kg
             "activity_level": profile.activity_level,
             "bmr": bmr,
             "tdee": tdee
@@ -60,8 +61,8 @@ class NutritionDatabase:
                 full_name=result.get("full_name"),
                 age=result["age"],
                 sex=result["sex"],
-                height_cm=result["height_cm"],
-                weight_kg=result["weight_kg"],
+                height_cm=profile.height_cm,
+                weight_kg=profile.weight_kg,
                 activity_level=result["activity_level"],
                 bmr=result["bmr"],
                 tdee=result["tdee"],
@@ -76,17 +77,46 @@ class NutritionDatabase:
         
         if response.data:
             data = response.data[0]
+            
+            # Note: Despite column names, database stores metric values (cm and kg)
+            height_inches = data.get("height_inches")
+            weight_lbs = data.get("weight_lbs")
+            
+            # Use values directly as they're already in metric
+            height_cm = float(height_inches) if height_inches else None
+            weight_kg = float(weight_lbs) if weight_lbs else None
+            
+            # Get age, sex, activity_level with defaults if None
+            age = data.get("age") or 25  # Default age if not set
+            sex = data.get("sex") or "Other"
+            activity_level = data.get("activity_level") or 2  # Default to light activity
+            
+            # Use BMR/TDEE from database if available, otherwise calculate
+            bmr = float(data.get("bmr")) if data.get("bmr") else 0.0
+            tdee = float(data.get("tdee")) if data.get("tdee") else 0.0
+            
+            # If height and weight are available but BMR/TDEE aren't, calculate them
+            if height_cm and weight_kg and (bmr == 0.0 or tdee == 0.0):
+                from nutrition_models import calculate_user_metrics
+                bmr, tdee = calculate_user_metrics(weight_kg, height_cm, age, sex, activity_level)
+            
+            # If height_cm or weight_kg are None, use default values
+            if height_cm is None:
+                height_cm = 170.0  # Default height
+            if weight_kg is None:
+                weight_kg = 70.0  # Default weight
+            
             return UserProfileResponse(
                 id=data["id"],
                 email=data.get("email"),
                 full_name=data.get("full_name"),
-                age=data.get("age"),
-                sex=data.get("sex"),
-                height_cm=data.get("height_cm"),
-                weight_kg=data.get("weight_kg"),
-                activity_level=data.get("activity_level"),
-                bmr=data.get("bmr"),
-                tdee=data.get("tdee"),
+                age=age,
+                sex=sex,
+                height_cm=height_cm,
+                weight_kg=weight_kg,
+                activity_level=activity_level,
+                bmr=bmr,
+                tdee=tdee,
                 created_at=data.get("created_at")
             )
         
@@ -106,9 +136,11 @@ class NutritionDatabase:
         if updates.sex is not None:
             data["sex"] = updates.sex
         if updates.height_cm is not None:
-            data["height_cm"] = updates.height_cm
+            # Store directly (column name is misleading but stores cm)
+            data["height_inches"] = updates.height_cm
         if updates.weight_kg is not None:
-            data["weight_kg"] = updates.weight_kg
+            # Store directly (column name is misleading but stores kg)
+            data["weight_lbs"] = updates.weight_kg
         if updates.activity_level is not None:
             data["activity_level"] = updates.activity_level
         if updates.email is not None:
@@ -117,10 +149,10 @@ class NutritionDatabase:
             data["full_name"] = updates.full_name
         
         # Recalculate BMR/TDEE if health metrics changed
-        if any(k in data for k in ["age", "sex", "height_cm", "weight_kg", "activity_level"]):
+        if any(k in data for k in ["age", "sex", "height_inches", "weight_lbs", "activity_level"]):
             # Use updated values or current values
-            weight = data.get("weight_kg", current.weight_kg)
-            height = data.get("height_cm", current.height_cm)
+            weight = updates.weight_kg if updates.weight_kg is not None else current.weight_kg
+            height = updates.height_cm if updates.height_cm is not None else current.height_cm
             age = data.get("age", current.age)
             sex = data.get("sex", current.sex)
             activity = data.get("activity_level", current.activity_level)
@@ -197,10 +229,37 @@ class NutritionDatabase:
             return FoodItemResponse(**response.data[0])
         return None
     
-    async def search_food_items(self, query: str, limit: int = 50) -> List[FoodItemResponse]:
-        """Search food items by name"""
-        response = self.client.table("food_items").select("*").ilike("name", f"%{query}%").limit(limit).execute()
+    async def search_food_items(self, query: str, limit: int = 50, date: Optional[str] = None) -> List[FoodItemResponse]:
+        """Search food items by name, optionally filtered by date"""
+        query_builder = self.client.table("food_items").select("*").ilike("name", f"%{query}%")
+        
+        if date:
+            # Convert YYYY-MM-DD to database format: "Day Month DD, YYYY"
+            from datetime import datetime
+            try:
+                date_obj = datetime.strptime(date, "%Y-%m-%d")
+                # Format: "Wed November 19, 2025"
+                formatted_date = date_obj.strftime("%a %B %d, %Y")
+                query_builder = query_builder.eq("date", formatted_date)
+            except ValueError:
+                # If date format is invalid, try direct match
+                query_builder = query_builder.eq("date", date)
+        
+        response = query_builder.limit(limit).execute()
         return [FoodItemResponse(**item) for item in response.data]
+    
+    async def get_available_dates(self) -> Dict[str, any]:
+        """Get list of distinct dates that have food items available"""
+        response = self.client.table("food_items").select("date").execute()
+        
+        # Get unique dates and sort them
+        dates = list(set([item["date"] for item in response.data if item.get("date")]))
+        dates.sort()
+        
+        return {
+            "dates": dates,
+            "count": len(dates)
+        }
     
     async def get_food_items_by_location_date(self, location: str, date: str) -> Dict[str, List[FoodItemResponse]]:
         """Get foods grouped by meal type for a specific location and date"""
