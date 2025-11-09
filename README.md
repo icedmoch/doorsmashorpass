@@ -101,7 +101,7 @@ DoorSmashOrPass simplifies healthy eating at UMass dining halls by:
 
 ## 📝 License
 
-[Your chosen license - e.g., MIT]
+GNU General Public License v3.0
 
 ---
 
