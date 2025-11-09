@@ -16,7 +16,6 @@ DoorSmashOrPass is a campus food delivery platform that connects students with s
 - **Student-to-Student Delivery**: Earn money delivering grab-and-go meals between classes
 - **Nutrition Tracking**: Automatic calorie, protein, carb, and fat tracking for every campus dining option
 - **AI Nutrition Coach**: An agentic chatbot powered by voice and text that takes orders, answers nutrition questions, and provides personalized dietary guidance
-- **Real-time Tracking**: Know exactly when your food will arrive
 - **Voice Ordering**: Seamless voice-based ordering powered by ElevenLabs
 
 ## 🛠️ How We Built It
@@ -92,7 +91,7 @@ We believe every student deserves convenient access to food and the ability to m
 
 - **Adriana Caraeni** - Frontend design, DevPost, technology research & implementation
 - **Riddhimaan Senapati** - AWS infrastructure, ElevenLabs integration, Gemini agentic chatbot
-- **Neha Kotturu** - Frontend development with Supabase integration, UMass dining scraper setup
+- **Neha Kotturu** - Frontend development with Supabase + Stripe integration, UMass dining scraper setup
 - **Haluk Yuzukirmizi** - [Role/Contribution]
 - **Egemen Dag** - [Role/Contribution]
 - **Saukhya Shinde** - [Role/Contribution]
