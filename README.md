@@ -1,5 +1,8 @@
 # 🍽️ DoorSmashOrPass
 
+[![Watch the demo!](https://img.youtube.com/vi/9kZN4feIgps/maxresdefault.jpg)](https://youtu.be/9kZN4feIgps)
+
+
 **HackUMass XIII Submission**
 
 A campus food delivery platform that connects students with student couriers while providing AI-powered nutrition coaching.
