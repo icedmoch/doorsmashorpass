@@ -1,4 +1,19 @@
 import { MapPin } from "lucide-react";
+<<<<<<< HEAD
+=======
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { useEffect } from "react";
+
+// Fix for default marker icon in Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+>>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
 
 interface DeliveryMapProps {
   lat: number;
@@ -8,6 +23,15 @@ interface DeliveryMapProps {
 
 export const DeliveryMap = ({ lat, lng, address }: DeliveryMapProps) => {
   const mapsUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`;
+<<<<<<< HEAD
+=======
+  const position: [number, number] = [lat, lng];
+
+  useEffect(() => {
+    // Force a resize event after the map is rendered
+    window.dispatchEvent(new Event('resize'));
+  }, []);
+>>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
 
   return (
     <div className="space-y-3">
@@ -22,6 +46,29 @@ export const DeliveryMap = ({ lat, lng, address }: DeliveryMapProps) => {
             </p>
           </div>
         </div>
+<<<<<<< HEAD
+=======
+        
+        <div className="h-[300px] w-full rounded-lg overflow-hidden mb-3">
+          <MapContainer 
+            center={position} 
+            zoom={15} 
+            scrollWheelZoom={false}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <Marker position={position}>
+              <Popup>
+                {address}
+              </Popup>
+            </Marker>
+          </MapContainer>
+        </div>
+
+>>>>>>> 0a2b9c43e664a9095d4a317a31497f49acc4c165
         <a
           href={mapsUrl}
           target="_blank"
