@@ -48,7 +48,7 @@ This script automatically:
 - Kills processes on ports 8000, 8002, 8080
 - Starts backend API (port 8000)
 - Starts chatbot API (port 8002)
-- Starts frontend dev server (port 5173)
+- Starts frontend dev server (port 8080)
 
 ### Manual Start
 
@@ -66,7 +66,7 @@ cd backend
 python chatbot_api.py
 ```
 
-**Frontend (port 5173):**
+**Frontend (port 8080):**
 ```powershell
 cd frontend
 npm run dev
@@ -115,7 +115,7 @@ python test_integration.py                      # End-to-end integration tests
 **Manual Frontend Testing:**
 
 1. Start all services with `.\start-dev.ps1`
-2. Navigate to http://localhost:5173/chatbot
+2. Navigate to http://localhost:8080/chatbot
 3. Test these chatbot queries:
    ```
    "Search for chicken items on 2025-11-11"
@@ -233,7 +233,7 @@ mcp__supabase__execute_sql --query "SELECT * FROM meal_entries WHERE user_id = '
 - [ ] Check API docs at http://localhost:8000/docs for new endpoints
 - [ ] Run Supabase advisors: `mcp__supabase__get_advisors --type security --type performance`
 - [ ] Test RLS policies if modified database schema
-- [ ] Verify frontend integration at http://localhost:5173
+- [ ] Verify frontend integration at http://localhost:8080
 
 **When Adding New Features:**
 - [ ] Write test in appropriate test file
@@ -509,10 +509,10 @@ Chatbot API calls Orders/Nutrition APIs via HTTPX with proper authentication. Ba
 
 ## Access Points
 
-- Frontend: http://localhost:5173
+- Frontend: http://localhost:8080
 - Main API Docs: http://localhost:8000/docs
 - Chatbot API Docs: http://localhost:8002/docs
-- Chatbot Page: http://localhost:5173/chatbot
+- Chatbot Page: http://localhost:8080/chatbot
 
 ## Known Issues & Fixes
 
